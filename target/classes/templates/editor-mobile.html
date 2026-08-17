@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="|線上棒球比賽紀錄表（編輯模式）— ${gameName}|">線上棒球比賽紀錄表（編輯模式）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap-mobile">
+
+    <header class="m-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span class="ball">⚾</span>
+            <div class="m-title">線上棒球比賽紀錄表<small>（編輯模式）</small></div>
+        </div>
+        <button class="icon-btn" id="menuBtn" aria-label="選單">☰</button>
+    </header>
+
+    <div class="card" id="menu" hidden style="margin-bottom:10px;">
+        <div class="card-body" style="display:grid;gap:8px;">
+            <a class="btn btn-block" href="/games">比賽列表</a>
+            <a class="btn btn-block" href="/teams">球隊管理</a>
+            <button class="btn btn-block" data-action="reset">重新開始</button>
+            <button class="btn btn-block btn-danger" data-action="finish">結束比賽</button>
+            <button class="btn btn-block" id="logoutBtn">登出</button>
+        </div>
+    </div>
+
+    <!-- 比分 -->
+    <section class="m-scorepanel">
+        <div class="m-score-row">
+            <div class="away" style="text-align:center;min-width:64px;">
+                <div class="tname" data-f="awayName">-</div>
+                <div class="tnum" data-f="awayScore">0</div>
+            </div>
+            <div class="m-score-mid">
+                <div>▾ <span data-f="inningLabel">1局上</span></div>
+                <div class="count"><span data-f="countLabel">0 - 0</span> | <span data-f="outs">0</span> OUT</div>
+            </div>
+            <div class="home" style="text-align:center;min-width:64px;">
+                <div class="tname" data-f="homeName">-</div>
+                <div class="tnum" data-f="homeScore">0</div>
+            </div>
+        </div>
+        <div class="m-counts">
+            <div class="count-col"><div class="label">好球 (S)</div><div class="dots" data-dots-strike></div></div>
+            <div class="count-col"><div class="label">壞球 (B)</div><div class="dots" data-dots-ball></div></div>
+            <div class="count-col"><div class="label">出局數</div><div class="dots" data-dots-out></div></div>
+            <div class="bases-box">
+                <div class="diamond">
+                    <span class="base-label second">二壘</span>
+                    <span class="base-label third">三壘</span>
+                    <span class="base-label first">一壘</span>
+                    <span class="base-label home">本壘</span>
+                    <span class="base second" data-base-second></span>
+                    <span class="base third" data-base-third></span>
+                    <span class="base first" data-base-first></span>
+                    <span class="base home"></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 打線 + 打席結果 -->
+    <div class="m-cols">
+        <section class="card">
+            <div class="tabs">
+                <button class="tab away active" data-lineup-tab="away">藍隊打線</button>
+                <button class="tab home" data-lineup-tab="home">紅隊打線</button>
+            </div>
+            <table class="lineup m-mini-lineup">
+                <thead><tr><th>棒次</th><th>球員</th><th>守備</th><th class="avg">打擊率</th></tr></thead>
+                <tbody id="lineupBody"></tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <div class="card-title">打席紀錄</div>
+            <div class="card-sub">目前打者：<strong id="currentBatterText" style="color:var(--text)">-</strong></div>
+            <div class="card-body">
+                <div class="m-result-grid m-scroll" style="max-height:300px;overflow-y:auto;padding-right:2px;">
+                    <button class="result-btn rb-hit" data-result="SINGLE">安打</button>
+                    <button class="result-btn rb-hit" data-result="DOUBLE">二壘安打</button>
+                    <button class="result-btn rb-hit" data-result="TRIPLE">三壘安打</button>
+                    <button class="result-btn rb-hit" data-result="HOME_RUN">全壘打</button>
+                    <button class="result-btn rb-walk" data-result="WALK">四壞球保送</button>
+                    <button class="result-btn rb-walk" data-result="HIT_BY_PITCH">觸身球</button>
+                    <button class="result-btn rb-walk" data-result="SAC_FLY">犧牲打</button>
+                    <button class="result-btn rb-walk" data-result="SAC_BUNT">犧牲觸擊</button>
+                    <button class="result-btn rb-infield" data-result="INFIELD_HIT">內野安打</button>
+                    <button class="result-btn rb-infield" data-result="INFIELD_GROUND_OUT">內野滾地球</button>
+                    <button class="result-btn rb-infield" data-result="INFIELD_FLY_OUT">內野飛球</button>
+                    <button class="result-btn rb-infield" data-result="INFIELD_SAC_FLY">內野高飛犧牲打</button>
+                    <button class="result-btn rb-out" data-result="OUTFIELD_FLY_OUT">外野飛球</button>
+                    <button class="result-btn rb-out" data-result="OUTFIELD_GROUND_OUT">外野滾地球</button>
+                    <button class="result-btn rb-out" data-result="FOUL_OUT">界外球</button>
+                    <button class="result-btn rb-out" data-result="CAUGHT_STEALING">阻殺</button>
+                    <button class="result-btn rb-bad" data-result="DOUBLE_PLAY">雙殺打</button>
+                    <button class="result-btn rb-bad" data-result="TRIPLE_PLAY">三殺打</button>
+                    <button class="result-btn rb-bad" data-result="ERROR">失誤</button>
+                    <button class="result-btn rb-bad" data-result="OTHER">其他</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 球數紀錄 -->
+    <section class="card" style="margin-top:10px;">
+        <div class="card-title">球數紀錄</div>
+        <div class="card-body">
+            <div class="m-pitch-btns">
+                <button class="pitch-btn pb-strike" data-pitch="STRIKE">好球 (S)</button>
+                <button class="pitch-btn pb-ball" data-pitch="BALL">壞球 (B)</button>
+                <button class="pitch-btn pb-foul" data-pitch="FOUL">界外球</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+                <select class="input" data-pitch-type>
+                    <option value="直球">直球</option>
+                    <option value="曲球">曲球</option>
+                    <option value="滑球">滑球</option>
+                    <option value="變速球">變速球</option>
+                    <option value="伸卡球">伸卡球</option>
+                </select>
+                <input class="input" type="number" min="60" max="180" value="140" data-pitch-speed aria-label="球速">
+            </div>
+        </div>
+    </section>
+
+    <!-- 投球紀錄 -->
+    <section class="card" style="margin-top:10px;">
+        <div class="card-title">投球紀錄 <span style="font-weight:400;color:var(--muted);font-size:12px;">（本打席）</span></div>
+        <div class="card-body"><div class="pitch-list scroll-area" id="pitchList"></div></div>
+    </section>
+</div>
+
+<!-- 固定在底部：目前打者 + 上/下一打席 -->
+<div class="m-footer">
+    <div class="batter-foot" id="batterFoot" style="border:none;background:transparent;padding:0;"></div>
+    <div class="nav-row">
+        <button class="btn" data-action="undo">上一打席</button>
+        <button class="btn btn-primary" data-action="next">下一打席</button>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script th:inline="javascript">
+    const GAME_ID = [[${gameId}]];
+    let activeTab = 'away';
+    let latest = null;
+
+    function render(state) {
+        latest = state;
+        const g = state.game;
+        const set = (k, v) => document.querySelectorAll('[data-f="' + k + '"]').forEach(el => el.textContent = v);
+        set('awayName', state.away.name); set('homeName', state.home.name);
+        set('awayScore', state.away.score); set('homeScore', state.home.score);
+        set('inningLabel', g.inningLabel); set('countLabel', g.countLabel); set('outs', g.outs);
+
+        BB.renderCounts(document, g);
+        BB.renderBases(document, g.bases);
+
+        const list = activeTab === 'away' ? state.awayLineup : state.homeLineup;
+        document.getElementById('lineupBody').className = activeTab;
+        document.getElementById('lineupBody').innerHTML = list.map(p => `
+            <tr class="${p.current ? 'current' + (activeTab === 'home' ? ' home-row' : '') : ''}">
+                <td class="order">${p.order}</td>
+                <td><span class="clickable-name" data-player-log="${p.lineupId}">${BB.esc(p.name)}</span></td>
+                <td>${BB.esc(p.position)}</td>
+                <td class="avg">${BB.esc(p.avg)}</td>
+            </tr>`).join('');
+
+        const b = state.currentBatter;
+        document.getElementById('currentBatterText').textContent = b ? `${b.name}（#${b.number}）` : '-';
+        BB.renderBatterFoot(document.getElementById('batterFoot'), b, '今日成績',
+            g.battingSide === 'AWAY' ? 'away' : 'home', '目前打者');
+
+        BB.renderPitches(document.getElementById('pitchList'), state.pitches);
+
+        const finished = g.status === 'FINISHED';
+        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"]')
+            .forEach(el => el.disabled = finished);
+    }
+
+    async function refresh(data) { render(data || await BB.loadState(GAME_ID)); }
+
+    document.querySelectorAll('[data-lineup-tab]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            activeTab = tab.dataset.lineupTab;
+            document.querySelectorAll('[data-lineup-tab]').forEach(t =>
+                t.classList.toggle('active', t.dataset.lineupTab === activeTab));
+            if (latest) render(latest);
+        });
+    });
+
+    document.getElementById('menuBtn').addEventListener('click', () => {
+        const m = document.getElementById('menu');
+        m.hidden = !m.hidden;
+    });
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await BB.post('/api/auth/logout');
+        location.href = '/';
+    });
+
+    BB.initPlayerLog(GAME_ID);
+    BB.bindEditorActions(GAME_ID, refresh);
+    BB.poll(GAME_ID, render, 30000);
+</script>
+</body>
+</html>

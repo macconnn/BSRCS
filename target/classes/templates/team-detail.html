@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>球員名單 — 線上棒球比賽紀錄表</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<!-- 伺服器端的值透過 data-* 傳給 JS，避免在 script 內使用 Thymeleaf 內嵌語法 -->
+<body th:attr="data-team-id=${teamId}, data-can-edit=${canEdit}">
+<div class="wrap" style="max-width:720px;">
+
+    <header class="topbar">
+        <div class="brand">
+            <a class="icon-btn" href="/teams" aria-label="返回球隊列表">‹</a>
+            <span id="teamTitle">球員名單</span>
+        </div>
+        <div class="topbar-actions">
+            <span class="badge badge-muted" th:if="${!canEdit}">👁 僅可檢視</span>
+            <button class="btn" th:if="${canEdit}" id="editTeamBtn">編輯球隊</button>
+            <a class="btn" href="/games">我的比賽</a>
+        </div>
+    </header>
+
+    <section class="card" id="teamForm" hidden style="margin-bottom:12px;">
+        <div class="card-title">編輯球隊</div>
+        <div class="card-body" style="display:grid;gap:10px;">
+            <label><span class="field-label">球隊名稱</span><input class="input" id="tName"></label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <label><span class="field-label">簡稱</span><input class="input" id="tShort" maxlength="4"></label>
+                <label><span class="field-label">代表色</span><input class="input" id="tColor" type="color" style="padding:6px;height:46px;"></label>
+            </div>
+            <button class="btn btn-primary btn-block" id="saveTeam">儲存球隊資料</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-title">球員名單</div>
+        <div class="card-sub" id="rosterHint">背號、姓名、守備位置；打擊率依實際打擊紀錄自動計算</div>
+        <div class="card-body" style="padding-top:8px;">
+            <table class="player-table">
+                <thead>
+                <tr>
+                    <th style="width:56px;">背號</th>
+                    <th>姓名</th>
+                    <th>守備位置</th>
+                    <th style="width:80px;text-align:right;">打擊率</th>
+                    <th th:if="${canEdit}" style="width:104px;"></th>
+                </tr>
+                </thead>
+                <tbody id="playerBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <div th:if="${canEdit}" style="margin-top:14px;">
+        <button class="btn btn-primary btn-block" id="addPlayerBtn">＋ 新增球員</button>
+    </div>
+
+    <section class="card" id="playerForm" hidden style="margin-top:12px;">
+        <div class="card-title" id="playerFormTitle">新增球員</div>
+        <div class="card-body" style="display:grid;gap:10px;">
+            <div style="display:grid;grid-template-columns:96px 1fr;gap:10px;">
+                <label><span class="field-label">背號</span><input class="input" id="pNumber" inputmode="numeric" placeholder="18"></label>
+                <label><span class="field-label">姓名</span><input class="input" id="pName" placeholder="王小明"></label>
+            </div>
+            <label>
+                <span class="field-label">守備位置</span>
+                <select class="input" id="pPosition">
+                    <option value="投手">投手</option>
+                    <option value="捕手">捕手</option>
+                    <option value="一壘手">一壘手</option>
+                    <option value="二壘手">二壘手</option>
+                    <option value="三壘手">三壘手</option>
+                    <option value="游擊手">游擊手</option>
+                    <option value="左外野手">左外野手</option>
+                    <option value="中外野手">中外野手</option>
+                    <option value="右外野手">右外野手</option>
+                    <option value="指定打擊">指定打擊</option>
+                </select>
+            </label>
+            <div class="card-sub" style="margin:0;">
+                打擊率不需要在此輸入：新球員預設 .000，之後會依比賽中紀錄員記錄的每個打席（安打、三振、保送...）自動即時計算。
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <button class="btn" id="cancelPlayer">取消</button>
+                <button class="btn btn-primary" id="savePlayer">儲存</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+    const TEAM_ID = parseInt(document.body.dataset.teamId, 10);
+    const canEdit = document.body.dataset.canEdit === 'true';
+    let players = [];
+    let editingPlayerId = null;
+
+    function playerRow(p) {
+        const actions = canEdit
+            ? '<td><div class="row-actions">'
+            + '<button class="btn btn-sm" data-edit="' + p.id + '">編輯</button>'
+            + '<button class="btn btn-sm" data-remove="' + p.id + '">移除</button>'
+            + '</div></td>'
+            : '';
+        const avgTitle = 'title="' + p.atBats + ' 打數 ' + p.hits + ' 安打"';
+        return '<tr>'
+            + '<td style="font-weight:700;">' + BB.esc(p.jerseyNumber) + '</td>'
+            + '<td>' + BB.esc(p.name) + '</td>'
+            + '<td>' + BB.esc(p.position) + '</td>'
+            + '<td style="text-align:right;" ' + avgTitle + '>' + BB.esc(p.battingAvg) + '</td>'
+            + actions
+            + '</tr>';
+    }
+
+    async function load() {
+        try {
+            const t = await BB.get('/api/teams/' + TEAM_ID);
+            players = t.players;
+
+            document.getElementById('teamTitle').textContent = t.name + '　球員名單';
+            document.title = t.name + ' — 球員名單';
+
+            const nameInput = document.getElementById('tName');
+            if (nameInput) {
+                nameInput.value = t.name;
+                document.getElementById('tShort').value = t.shortName;
+                document.getElementById('tColor').value = t.color;
+            }
+
+            document.getElementById('rosterHint').textContent = players.length + ' 位球員　·　'
+                + (canEdit ? '可新增與編輯' : '瀏覽者僅可觀看');
+
+            const colspan = canEdit ? 5 : 4;
+            document.getElementById('playerBody').innerHTML = players.length
+                ? players.map(playerRow).join('')
+                : '<tr><td colspan="' + colspan + '"><div class="empty">名單還是空的</div></td></tr>';
+
+            if (canEdit) bindRowActions();
+        } catch (e) {
+            BB.toast(e.message, true);
+        }
+    }
+
+    function bindRowActions() {
+        document.querySelectorAll('[data-edit]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const p = players.find(function (x) { return String(x.id) === btn.dataset.edit; });
+                if (!p) return;
+                editingPlayerId = p.id;
+                document.getElementById('playerFormTitle').textContent = '編輯球員';
+                document.getElementById('pNumber').value = p.jerseyNumber;
+                document.getElementById('pName').value = p.name;
+                document.getElementById('pPosition').value = p.position || '投手';
+                const form = document.getElementById('playerForm');
+                form.hidden = false;
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+
+        document.querySelectorAll('[data-remove]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                const p = players.find(function (x) { return String(x.id) === btn.dataset.remove; });
+                if (!p) return;
+                if (!confirm('確定要將 ' + p.name + ' 移出名單嗎？（過往比賽紀錄會保留）')) return;
+                try {
+                    await BB.request('/api/players/' + p.id, 'DELETE');
+                    BB.toast('已移除球員');
+                    load();
+                } catch (e) {
+                    BB.toast(e.message, true);
+                }
+            });
+        });
+    }
+
+    if (canEdit) {
+        document.getElementById('editTeamBtn').addEventListener('click', function () {
+            const f = document.getElementById('teamForm');
+            f.hidden = !f.hidden;
+        });
+
+        document.getElementById('saveTeam').addEventListener('click', async function () {
+            try {
+                await BB.request('/api/teams/' + TEAM_ID, 'PUT', {
+                    name: document.getElementById('tName').value.trim(),
+                    shortName: document.getElementById('tShort').value.trim(),
+                    colorHex: document.getElementById('tColor').value
+                });
+                BB.toast('球隊資料已更新');
+                document.getElementById('teamForm').hidden = true;
+                load();
+            } catch (e) {
+                BB.toast(e.message, true);
+            }
+        });
+
+        document.getElementById('addPlayerBtn').addEventListener('click', function () {
+            editingPlayerId = null;
+            document.getElementById('playerFormTitle').textContent = '新增球員';
+            ['pNumber', 'pName'].forEach(function (id) {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('playerForm').hidden = false;
+        });
+
+        document.getElementById('cancelPlayer').addEventListener('click', function () {
+            document.getElementById('playerForm').hidden = true;
+            editingPlayerId = null;
+        });
+
+        document.getElementById('savePlayer').addEventListener('click', async function () {
+            const body = {
+                name: document.getElementById('pName').value.trim(),
+                jerseyNumber: document.getElementById('pNumber').value.trim(),
+                defaultPosition: document.getElementById('pPosition').value
+            };
+            if (!body.name) { BB.toast('請輸入球員姓名', true); return; }
+            try {
+                if (editingPlayerId) {
+                    await BB.request('/api/players/' + editingPlayerId, 'PUT', body);
+                    BB.toast('球員資料已更新');
+                } else {
+                    await BB.post('/api/teams/' + TEAM_ID + '/players', body);
+                    BB.toast('已新增球員');
+                }
+                document.getElementById('playerForm').hidden = true;
+                editingPlayerId = null;
+                load();
+            } catch (e) {
+                BB.toast(e.message, true);
+            }
+        });
+    }
+
+    load();
+</script>
+</body>
+</html>

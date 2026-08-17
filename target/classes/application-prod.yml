@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/baseball}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:baseball}
+    password: ${DB_PASSWORD:baseball123}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: update           # 首次啟動自動建表；正式環境可改 validate + db/schema_postgres.sql
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  thymeleaf:
+    cache: true
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        transport:
+          protocol: smtp
+    default-encoding: UTF-8
+
+app:
+  mail:
+    enabled: true
+    from: ${MAIL_FROM:no-reply@baseball.local}
+  seed: ${APP_SEED:false}
