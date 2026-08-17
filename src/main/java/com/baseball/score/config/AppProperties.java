@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AppProperties {
 
     private boolean seed = false;
+    private String defaultEditorEmail;
     private Otp otp = new Otp();
     private Auth auth = new Auth();
     private Mail mail = new Mail();

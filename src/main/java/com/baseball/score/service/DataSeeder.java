@@ -3,6 +3,7 @@ package com.baseball.score.service;
 import com.baseball.score.config.AppProperties;
 import com.baseball.score.entity.*;
 import com.baseball.score.enums.GameStatus;
+import com.baseball.score.enums.Role;
 import com.baseball.score.enums.TeamSide;
 import com.baseball.score.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -27,10 +29,12 @@ public class DataSeeder implements ApplicationRunner {
     private final PlayerRepository playerRepo;
     private final GameRepository gameRepo;
     private final GameLineupRepository lineupRepo;
+    private final AppUserRepository userRepo;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        seedDefaultEditor();
         if (!props.isSeed() || gameRepo.count() > 0) return;
 
         Team blue = teamRepo.save(Team.builder().name("藍隊").shortName("藍").colorHex("#1d4ed8").build());
@@ -94,6 +98,24 @@ public class DataSeeder implements ApplicationRunner {
         }
         return list;
     }
+
+  private void seedDefaultEditor() {
+    String email = props.getDefaultEditorEmail();
+    if (!StringUtils.hasText(email)) return;
+    String normalized = email.trim().toLowerCase();
+
+    if (userRepo.findByEmailIgnoreCase(normalized).isPresent()) {
+      log.info("預設編輯者帳號已存在，略過新增：{}", normalized);
+      return;
+    }
+    AppUser user = userRepo.save(AppUser.builder()
+        .email(normalized)
+        .displayName(normalized.substring(0, normalized.indexOf('@')))
+        .role(Role.EDITOR)
+        .enabled(true)
+        .build());
+    log.info("已建立預設編輯者帳號：id={}, email={}", user.getId(), normalized);
+  }
 
     private List<GameLineup> saveLineup(Game game, Team team, List<Player> players, TeamSide side) {
         List<GameLineup> list = new ArrayList<>();

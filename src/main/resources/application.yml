@@ -2,7 +2,7 @@ spring:
   application:
     name: baseball-score
   profiles:
-    active: dev
+    active: prod
   thymeleaf:
     cache: false
   jackson:
@@ -29,6 +29,7 @@ app:
     subject: "【線上棒球比賽紀錄表】登入驗證碼"
     enabled: true            # false = 只印在 log（本機開發免 SMTP）
   seed: true                 # 啟動時塞入示範球隊 / 比賽資料
+  default-editor-email: ${APP_DEFAULT_EDITOR_EMAIL:a0983257133@gmail.com}   # 啟動時確保此帳號存在（EDITOR），已存在則不新增
 
 logging:
   level:

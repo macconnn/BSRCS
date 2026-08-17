@@ -5,88 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fe7e24fe-acad-4eea-bc76-7714383f56a9" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/BaseballScoreApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/BaseballScoreApplication.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/AppProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/AppProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/AuthInterceptor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/AuthInterceptor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/CurrentUser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/CurrentUser.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/GlobalExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/GlobalExceptionHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/RequireEditor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/RequireEditor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/WebConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/WebConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/AuthApiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/AuthApiController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/GameApiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/GameApiController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/PageController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/PageController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/TeamApiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/TeamApiController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/ApiResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/ApiResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/CreateGameRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/CreateGameRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/OtpRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/OtpRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/OtpVerifyRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/OtpVerifyRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/PitchRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/PitchRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/PlayerRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/PlayerRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/ResultRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/ResultRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/TeamRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/dto/TeamRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/AppUser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/AppUser.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/AtBat.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/AtBat.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/AuthToken.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/AuthToken.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Game.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameEditor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameEditor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameEvent.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameLineup.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameLineup.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameSnapshot.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/GameSnapshot.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/InningScore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/InningScore.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/OtpCode.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/OtpCode.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Pitch.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Pitch.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Player.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Player.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Team.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/entity/Team.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/DeviceType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/DeviceType.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/GameStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/GameStatus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/InningHalf.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/InningHalf.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/OtpPurpose.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/OtpPurpose.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/PitchCall.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/PitchCall.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/PlayResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/PlayResult.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/Role.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/Role.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/TeamSide.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/enums/TeamSide.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/AppUserRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/AppUserRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/AtBatRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/AtBatRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/AuthTokenRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/AuthTokenRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameEditorRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameEditorRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameEventRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameEventRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameLineupRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameLineupRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameSnapshotRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/GameSnapshotRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/InningScoreRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/InningScoreRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/OtpCodeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/OtpCodeRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/PitchRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/PitchRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/PlayerRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/PlayerRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/TeamRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/repository/TeamRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/AuthService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/DataSeeder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/DataSeeder.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/GameQueryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/GameQueryService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/GameService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/GameService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/MailService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/MailService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/PlayerStatsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/PlayerStatsService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/ScoringService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/ScoringService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/TeamService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/TeamService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/util/ApiException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/util/ApiException.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/util/DeviceUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/util/DeviceUtil.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application-dev.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-dev.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application-prod.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-prod.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/schema_postgres.sql" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/schema_postgres.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/static/css/app.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/static/css/app.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/static/js/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/editor-mobile.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/editor-mobile.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/editor-pc.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/editor-pc.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/games.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/games.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/login.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/login.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/team-detail.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/team-detail.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/teams.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/teams.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/viewer-mobile.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/viewer-mobile.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/viewer-pc.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/viewer-pc.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
