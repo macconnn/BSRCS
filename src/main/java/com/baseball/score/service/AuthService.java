@@ -83,6 +83,38 @@ public class AuthService {
         return ttl;
     }
 
+    /**
+     * 暫時簡化版登入：驗證 Email 格式，並確認 app_user 資料表中已存在此 Email，
+     * 存在才允許登入（不存在的 Email 不會自動建立新帳號）。不寄送、也不檢查驗證碼。
+     * 原本的 requestOtp() / verifyOtp() 流程保留在下方，之後要恢復兩步驟驗證碼登入，
+     * 把 Controller 改回呼叫 requestOtp()/verifyOtp() 即可。
+     */
+    @Transactional
+    public String loginByEmailOnly(String rawEmail, String userAgent) {
+        String email = normalize(rawEmail);
+        if (!EMAIL.matcher(email).matches()) {
+            throw new ApiException("Email 格式不正確");
+        }
+
+        // 只允許已存在的帳號登入，不存在則直接擋下（不再自動建立新帳號）
+        AppUser user = userRepo.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "此 Email 尚未註冊，請聯絡管理員新增帳號"));
+
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "此帳號已被停用");
+        }
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepo.save(user);
+
+        AuthToken token = tokenRepo.save(AuthToken.builder()
+                .token(UUID.randomUUID().toString().replace("-", ""))
+                .user(user)
+                .expiresAt(LocalDateTime.now().plusDays(props.getAuth().getTokenTtlDays()))
+                .userAgent(userAgent == null ? null : userAgent.substring(0, Math.min(userAgent.length(), 290)))
+                .build());
+        return token.getToken();
+    }
+
     @Transactional
     public String verifyOtp(String rawEmail, String code, String userAgent) {
         String email = normalize(rawEmail);

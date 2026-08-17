@@ -5,9 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fe7e24fe-acad-4eea-bc76-7714383f56a9" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/AppProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/config/AppProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/DataSeeder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/DataSeeder.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/AuthApiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/controller/AuthApiController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/AuthService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/MailService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/baseball/score/service/MailService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application-prod.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-prod.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/login.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/templates/login.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

@@ -22,14 +22,24 @@ public class AuthApiController {
 
     private final AuthService authService;
 
-    /** 發送驗證碼（JavaMail） */
+    /**
+     * 發送驗證碼（JavaMail）— 暫時停用寄信功能。
+     * 目前改為：只驗證 Email 格式是否正確，通過就直接登入（略過驗證碼輸入畫面）。
+     * 之後要恢復寄送驗證碼流程，把下面註解拿掉、並移除簡化版登入那段即可。
+     */
     @PostMapping("/otp")
-    public ApiResponse<Map<String, Object>> requestOtp(@Valid @RequestBody OtpRequest req, HttpServletRequest request) {
-        int ttl = authService.requestOtp(req.getEmail(), authService.clientIp(request));
-        return ApiResponse.ok("驗證碼已寄送至 " + req.getEmail(), Map.of("ttlMinutes", ttl));
+    public ApiResponse<Map<String, Object>> requestOtp(@Valid @RequestBody OtpRequest req,
+                                                         HttpServletRequest request,
+                                                         HttpServletResponse response) {
+        // int ttl = authService.requestOtp(req.getEmail(), authService.clientIp(request));
+        // return ApiResponse.ok("驗證碼已寄送至 " + req.getEmail(), Map.of("ttlMinutes", ttl));
+
+        String token = authService.loginByEmailOnly(req.getEmail(), request.getHeader("User-Agent"));
+        authService.writeCookie(response, token, authService.cookieMaxAge());
+        return ApiResponse.ok("登入成功", Map.of("redirect", "/games", "skipOtp", true));
     }
 
-    /** 驗證並登入 */
+    /** 驗證並登入（目前流程已改為在 /otp 直接完成登入，這支先保留、暫不使用） */
     @PostMapping("/verify")
     public ApiResponse<Map<String, Object>> verify(@Valid @RequestBody OtpVerifyRequest req,
                                                    HttpServletRequest request,

@@ -19,6 +19,11 @@ public class MailService {
     private final AppProperties props;
 
     public void sendOtp(String to, String code, int ttlMinutes) {
+        // === 寄送 Email 功能暫時停用（Render 免費方案擋 SMTP port，暫不寄信）===
+        // 保留原本程式碼，之後要恢復寄信只要把下面這段註解拿掉即可。
+        log.warn("[MAIL DISABLED] 寄給 {} 的登入驗證碼 = {}（{} 分鐘內有效，未真正寄出）", to, code, ttlMinutes);
+
+        /*
         if (!props.getMail().isEnabled()) {
             log.warn("[DEV MAIL] 寄給 {} 的登入驗證碼 = {}（{} 分鐘內有效）", to, code, ttlMinutes);
             return;
@@ -41,6 +46,7 @@ public class MailService {
             log.error("寄送驗證碼失敗：{}", to, e);
             throw new IllegalStateException("驗證碼寄送失敗，請稍後再試");
         }
+        */
     }
 
     private String buildHtml(String code, int ttlMinutes) {

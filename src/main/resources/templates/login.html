@@ -158,6 +158,21 @@
         if (!email) { BB.toast('請輸入 Email', true); return; }
         try {
             const data = await BB.post('/api/auth/otp', { email });
+
+            // === 原本流程：寄出驗證碼後顯示輸入驗證碼畫面，暫時停用 ===
+            // document.getElementById('emailEcho').textContent = email;
+            // document.getElementById('ttl').textContent = data.ttlMinutes;
+            // show(2);
+            // otpInputs[0].focus();
+            // startCooldown(60);
+            // BB.toast('驗證碼已寄出，請至信箱查看');
+
+            // 目前流程：後端已直接檢查 Email 格式並完成登入，直接導向即可
+            if (data.skipOtp) {
+                BB.toast('登入成功');
+                location.href = data.redirect || '/games';
+                return;
+            }
             document.getElementById('emailEcho').textContent = email;
             document.getElementById('ttl').textContent = data.ttlMinutes;
             show(2);
