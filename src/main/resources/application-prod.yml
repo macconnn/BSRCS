@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/baseball}
+    url: ${DB_URL}
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USER:baseball}
-    password: ${DB_PASSWORD:baseball123}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
   jpa:
@@ -14,10 +14,10 @@ spring:
   thymeleaf:
     cache: true
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -32,5 +32,5 @@ spring:
 app:
   mail:
     enabled: true
-    from: ${MAIL_FROM:no-reply@baseball.local}
+    from: ${MAIL_FROM}
   seed: ${APP_SEED:false}
