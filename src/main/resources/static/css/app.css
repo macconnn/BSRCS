@@ -319,12 +319,22 @@ table { border-collapse: collapse; width: 100%; }
 .m-counts .base-label.home { top: 56px; left: 70px; }
 
 .m-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; margin-top: 12px; align-items: start; }
-.m-cols-viewer { display: grid; grid-template-columns: 88px 1fr 88px; gap: 8px; margin-top: 12px; align-items: start; }
 .m-mini-lineup { font-size: 12px; }
 .m-mini-lineup td { padding: 8px 6px; border-bottom: 1px solid #f1f4f8; }
 .m-mini-lineup td.order { font-weight: 700; width: 16px; }
 .m-mini-lineup .away td.order { color: var(--blue); }
 .m-mini-lineup .home td.order { color: var(--red); }
+
+/* 手機檢視模式：完整顯示兩隊打線（棒次/背號/球員/守備/打擊率），取代原本中間的守備陣型圖案 */
+.m-lineups-full { display: grid; gap: 10px; margin-top: 12px; }
+.m-full-lineup { font-size: 12.5px; }
+.m-full-lineup th { color: var(--muted); font-size: 11px; font-weight: 500; text-align: left; padding: 6px 6px; }
+.m-full-lineup td { padding: 8px 6px; border-bottom: 1px solid #f1f4f8; }
+.m-full-lineup td.order { font-weight: 700; }
+.m-full-lineup .away td.order { color: var(--blue); }
+.m-full-lineup .home td.order { color: var(--red); }
+.m-full-lineup td.avg, .m-full-lineup th.avg { text-align: right; }
+
 .m-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .m-result-grid .result-btn { font-size: 13px; padding: 11px 4px; }
 .m-pitch-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -456,6 +466,13 @@ table { border-collapse: collapse; width: 100%; }
 .toast.error { background: var(--red); }
 
 .readonly-note { font-size: 12px; color: var(--muted); text-align: center; padding: 10px; }
+
+/* ---------------------------------------------------------------- 新增比賽：排打線 */
+.lineup-setup {
+    max-height: 260px; overflow-y: auto; border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px 8px;
+}
+.lineup-setup-table th { font-weight: 500; }
 
 @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }

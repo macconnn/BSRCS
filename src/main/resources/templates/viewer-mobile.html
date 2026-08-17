@@ -62,22 +62,22 @@
         </div>
     </section>
 
-    <!-- 打線（左右）＋ 守備陣型（中） -->
-    <div class="m-cols-viewer">
+    <!-- 打線（完整顯示兩隊球員資訊） -->
+    <div class="m-lineups-full">
         <section class="card">
-            <div class="lineup-head away" style="font-size:12px;padding:8px 0;">藍隊打線</div>
-            <table class="lineup m-mini-lineup"><tbody id="awayBody"></tbody></table>
+            <div class="lineup-head away">藍隊打線</div>
+            <table class="lineup m-full-lineup">
+                <thead><tr><th>棒次</th><th>背號</th><th>球員</th><th>守備</th><th class="avg">打擊率</th></tr></thead>
+                <tbody id="awayBody"></tbody>
+            </table>
         </section>
 
         <section class="card">
-            <div class="card-body" style="padding:8px;">
-                <div class="field" id="field"></div>
-            </div>
-        </section>
-
-        <section class="card">
-            <div class="lineup-head home" style="font-size:12px;padding:8px 0;">紅隊打線</div>
-            <table class="lineup m-mini-lineup"><tbody id="homeBody"></tbody></table>
+            <div class="lineup-head home">紅隊打線</div>
+            <table class="lineup m-full-lineup">
+                <thead><tr><th>棒次</th><th>背號</th><th>球員</th><th>守備</th><th class="avg">打擊率</th></tr></thead>
+                <tbody id="homeBody"></tbody>
+            </table>
         </section>
     </div>
 
@@ -115,9 +115,8 @@
         BB.renderCounts(document, g);
         BB.renderBases(document, g.bases);
 
-        BB.renderMiniLineup(document.getElementById('awayBody'), state.awayLineup, 'away');
-        BB.renderMiniLineup(document.getElementById('homeBody'), state.homeLineup, 'home');
-        BB.renderField(document.getElementById('field'), state.defense);
+        BB.renderLineup(document.getElementById('awayBody'), state.awayLineup, 'away');
+        BB.renderLineup(document.getElementById('homeBody'), state.homeLineup, 'home');
 
         BB.renderScoreboard(document.getElementById('scoreboard'), state);
         BB.renderFeed(document.getElementById('feed'), state.events);

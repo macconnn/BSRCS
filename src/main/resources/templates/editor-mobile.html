@@ -69,6 +69,10 @@
                 <button class="tab away active" data-lineup-tab="away">藍隊打線</button>
                 <button class="tab home" data-lineup-tab="home">紅隊打線</button>
             </div>
+            <div style="padding:6px 10px;text-align:right;display:flex;gap:6px;justify-content:flex-end;">
+                <button class="btn btn-sm" id="posSwapBtn">🔄 換守備位置</button>
+                <button class="btn btn-sm" id="subBtn">🔁 換人</button>
+            </div>
             <table class="lineup m-mini-lineup">
                 <thead><tr><th>棒次</th><th>球員</th><th>守備</th><th class="avg">打擊率</th></tr></thead>
                 <tbody id="lineupBody"></tbody>
@@ -178,7 +182,7 @@
         BB.renderPitches(document.getElementById('pitchList'), state.pitches);
 
         const finished = g.status === 'FINISHED';
-        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"]')
+        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"],#subBtn,#posSwapBtn')
             .forEach(el => el.disabled = finished);
     }
 
@@ -200,6 +204,18 @@
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         await BB.post('/api/auth/logout');
         location.href = '/';
+    });
+
+    document.getElementById('subBtn').addEventListener('click', () => {
+        if (!latest) return;
+        const list = activeTab === 'away' ? latest.awayLineup : latest.homeLineup;
+        BB.openSubstituteModal(GAME_ID, activeTab.toUpperCase(), list, refresh);
+    });
+
+    document.getElementById('posSwapBtn').addEventListener('click', () => {
+        if (!latest) return;
+        const list = activeTab === 'away' ? latest.awayLineup : latest.homeLineup;
+        BB.openPositionSwapModal(GAME_ID, activeTab.toUpperCase(), list, refresh);
     });
 
     BB.initPlayerLog(GAME_ID);

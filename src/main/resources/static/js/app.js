@@ -4,6 +4,11 @@
    ========================================================================= */
 const BB = (() => {
 
+    /* ---------------------------------------------------------- 共用常數 */
+
+    /** 守備位置清單：新增比賽排打線 / 比賽中換人共用 */
+    const POSITIONS = ['投手', '捕手', '一壘手', '二壘手', '三壘手', '游擊手', '左外野手', '中外野手', '右外野手', '指定打擊'];
+
     /* ---------------------------------------------------------- 基礎工具 */
 
     async function request(url, method = 'GET', body) {
@@ -306,6 +311,160 @@ const BB = (() => {
         document.removeEventListener('keydown', escClose);
     }
 
+    /* ---------------------------------------------------------- 換人（比賽進行中） */
+
+    /**
+     * 開啟換人視窗：選擇場上要換下的球員 + 該隊可用（尚未在場上）的球員 + 守備位置。
+     * onFieldList：目前該隊打線（state.awayLineup 或 state.homeLineup）。
+     * refresh：換人成功後用來刷新畫面的 callback，會收到最新的 game state。
+     */
+    async function openSubstituteModal(gameId, side, onFieldList, refresh) {
+        closeSubstituteModal();
+
+        if (!onFieldList || !onFieldList.length) {
+            toast('目前沒有打線可供替換', true);
+            return;
+        }
+
+        let bench;
+        try {
+            bench = await get(`/api/games/${gameId}/bench?side=${side}`);
+        } catch (e) {
+            toast(e.message, true);
+            return;
+        }
+        if (!bench.length) {
+            toast('這支球隊目前沒有可替補上場的球員', true);
+            return;
+        }
+
+        const posOptions = ['<option value="">（沿用原守備位置）</option>']
+            .concat(POSITIONS.map(p => `<option value="${p}">${p}</option>`)).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'subModalMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="更換球員" style="max-width:420px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">換人</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <label><span class="field-label">被換下（目前在場上）</span>
+                        <select class="input" id="subOut">
+                            ${onFieldList.map(p => `<option value="${p.lineupId}">${esc(p.order)}棒　${esc(p.name)}（#${esc(p.number)}）　${esc(p.position)}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label><span class="field-label">換上（該隊可用球員）</span>
+                        <select class="input" id="subIn">
+                            ${bench.map(p => `<option value="${p.id}">${esc(p.name)}${p.jerseyNumber ? '（#' + esc(p.jerseyNumber) + '）' : ''}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label><span class="field-label">守備位置</span>
+                        <select class="input" id="subPos">${posOptions}</select>
+                    </label>
+                    <button class="btn btn-primary btn-block" id="subConfirm">確認換人</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeSubstituteModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeSubstituteModal);
+        document.addEventListener('keydown', subEscClose);
+        document.body.appendChild(mask);
+
+        document.getElementById('subConfirm').addEventListener('click', async () => {
+            const outLineupId = parseInt(document.getElementById('subOut').value, 10);
+            const inPlayerId = parseInt(document.getElementById('subIn').value, 10);
+            const position = document.getElementById('subPos').value || null;
+            try {
+                const data = await post(`/api/games/${gameId}/substitutions`, { side, outLineupId, inPlayerId, position });
+                closeSubstituteModal();
+                toast('已完成換人');
+                if (refresh) refresh(data);
+            } catch (e) {
+                toast(e.message, true);
+            }
+        });
+    }
+
+    function subEscClose(e) { if (e.key === 'Escape') closeSubstituteModal(); }
+
+    function closeSubstituteModal() {
+        document.querySelectorAll('#subModalMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', subEscClose);
+    }
+
+    /* ---------------------------------------------------------- 互換守備位置（比賽進行中） */
+
+    /**
+     * 開啟互換守備位置視窗：從同一隊「目前在場上」的球員中選兩位，單純互換守備位置。
+     * 不涉及換人，不影響打線棒次。
+     * onFieldList：目前該隊打線（state.awayLineup 或 state.homeLineup）。
+     */
+    function openPositionSwapModal(gameId, side, onFieldList, refresh) {
+        closePositionSwapModal();
+
+        if (!onFieldList || onFieldList.length < 2) {
+            toast('目前在場上的球員不足兩位，無法互換守備位置', true);
+            return;
+        }
+
+        const optionsHtml = onFieldList.map(p =>
+            `<option value="${p.lineupId}">${esc(p.order)}棒　${esc(p.name)}（#${esc(p.number)}）　${esc(p.position)}</option>`).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'posSwapModalMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="互換守備位置" style="max-width:420px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">互換守備位置</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <p style="font-size:12px;color:var(--muted);margin:0;">只交換這兩位場上球員的守備位置，不會換人也不會更動打線棒次。</p>
+                    <label><span class="field-label">球員 A</span>
+                        <select class="input" id="posA">${optionsHtml}</select>
+                    </label>
+                    <label><span class="field-label">球員 B</span>
+                        <select class="input" id="posB">${optionsHtml}</select>
+                    </label>
+                    <button class="btn btn-primary btn-block" id="posSwapConfirm">確認互換</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closePositionSwapModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closePositionSwapModal);
+        document.addEventListener('keydown', posSwapEscClose);
+        document.body.appendChild(mask);
+
+        const bSel = document.getElementById('posB');
+        if (bSel.options.length > 1) bSel.selectedIndex = 1; // 預設選第二位，避免一開始 A/B 相同
+
+        document.getElementById('posSwapConfirm').addEventListener('click', async () => {
+            const lineupIdA = parseInt(document.getElementById('posA').value, 10);
+            const lineupIdB = parseInt(document.getElementById('posB').value, 10);
+            if (lineupIdA === lineupIdB) {
+                toast('請選擇兩位不同的球員', true);
+                return;
+            }
+            try {
+                const data = await post(`/api/games/${gameId}/position-swap`, { side, lineupIdA, lineupIdB });
+                closePositionSwapModal();
+                toast('已互換守備位置');
+                if (refresh) refresh(data);
+            } catch (e) {
+                toast(e.message, true);
+            }
+        });
+    }
+
+    function posSwapEscClose(e) { if (e.key === 'Escape') closePositionSwapModal(); }
+
+    function closePositionSwapModal() {
+        document.querySelectorAll('#posSwapModalMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', posSwapEscClose);
+    }
+
     /* ---------------------------------------------------------- 編輯動作 */
 
     function bindEditorActions(gameId, refresh) {
@@ -350,9 +509,12 @@ const BB = (() => {
     }
 
     return {
+        POSITIONS,
         request, get, post, toast, esc, loadState, poll, run,
         renderCounts, renderBases, renderLineup, renderMiniLineup, renderBatterFoot,
         renderPitches, renderScoreboard, renderFeed, renderField, bindEditorActions,
-        initPlayerLog, openPlayerModal, closePlayerModal
+        initPlayerLog, openPlayerModal, closePlayerModal,
+        openSubstituteModal, closeSubstituteModal,
+        openPositionSwapModal, closePositionSwapModal
     };
 })();

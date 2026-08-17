@@ -5,6 +5,7 @@ import com.baseball.score.config.CurrentUser;
 import com.baseball.score.config.RequireEditor;
 import com.baseball.score.dto.*;
 import com.baseball.score.entity.Game;
+import com.baseball.score.enums.TeamSide;
 import com.baseball.score.repository.TeamRepository;
 import com.baseball.score.service.GameQueryService;
 import com.baseball.score.service.GameService;
@@ -85,6 +86,38 @@ public class GameApiController {
         gameService.assertCanEditGame(id, currentUser(request).getUserId());
         scoringService.recordResult(id, req.getResult());
         return ApiResponse.ok("已記錄 " + req.getResult().getLabel(), queryService.gameState(id, true));
+    }
+
+    /** 該隊目前可用來替補上場的球員（已經在場上的不會出現） */
+    @RequireEditor
+    @GetMapping("/{id}/bench")
+    public ApiResponse<List<Map<String, Object>>> bench(@PathVariable Long id,
+                                                          @RequestParam TeamSide side,
+                                                          HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        return ApiResponse.ok(gameService.benchPlayers(id, side));
+    }
+
+    /** 換人：用板凳球員替補場上某位打線球員 */
+    @RequireEditor
+    @PostMapping("/{id}/substitutions")
+    public ApiResponse<Map<String, Object>> substitute(@PathVariable Long id,
+                                                        @Valid @RequestBody SubstitutionRequest req,
+                                                        HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.substitute(id, req.getSide(), req.getOutLineupId(), req.getInPlayerId(), req.getPosition());
+        return ApiResponse.ok("已完成換人", queryService.gameState(id, true));
+    }
+
+    /** 單純互換兩位場上球員的守備位置（不換人、不影響打線與棒次） */
+    @RequireEditor
+    @PostMapping("/{id}/position-swap")
+    public ApiResponse<Map<String, Object>> swapPosition(@PathVariable Long id,
+                                                          @Valid @RequestBody PositionSwapRequest req,
+                                                          HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.swapPosition(id, req.getSide(), req.getLineupIdA(), req.getLineupIdB());
+        return ApiResponse.ok("已互換守備位置", queryService.gameState(id, true));
     }
 
     @RequireEditor

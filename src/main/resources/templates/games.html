@@ -44,8 +44,25 @@
                 <label><span class="field-label">客隊（先攻）</span><select class="input" id="gAway"></select></label>
                 <label><span class="field-label">主隊（後攻）</span><select class="input" id="gHome"></select></label>
             </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <span class="field-label" style="margin:0;">客隊打線安排</span>
+                        <button type="button" class="btn btn-sm" id="autoAway">自動帶入前9位</button>
+                    </div>
+                    <div id="awayLineupBox" class="lineup-setup"></div>
+                </div>
+                <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <span class="field-label" style="margin:0;">主隊打線安排</span>
+                        <button type="button" class="btn btn-sm" id="autoHome">自動帶入前9位</button>
+                    </div>
+                    <div id="homeLineupBox" class="lineup-setup"></div>
+                </div>
+            </div>
             <p style="font-size:12px;color:var(--muted);margin:0;">
-                建立後會依球員名單自動排出 1~9 棒。
+                在「棒次」欄位填入 1、2、3…安排出場順序（可留空表示未上場），同一隊棒次不可重複；未安排任何棒次時，建立後會依球員名單自動排出 1~9 棒。
             </p>
             <button class="btn btn-primary btn-block" id="createGame">建立比賽</button>
         </div>
@@ -122,6 +139,83 @@
 
     const newBtn = document.getElementById('newGameBtn');
     if (newBtn) {
+
+        /** 渲染單一球隊的排打線表格：棒次輸入框 + 背號 + 姓名 + 守備位置下拉 */
+        function renderLineupSetup(box, players) {
+            if (!players.length) {
+                box.innerHTML = '<div class="empty" style="padding:8px 0;">這支球隊尚未建立球員</div>';
+                return;
+            }
+            const posOptions = (selected) => ['<option value="">（未設定）</option>']
+                .concat(BB.POSITIONS.map(p => `<option value="${p}" ${p === selected ? 'selected' : ''}>${p}</option>`)).join('');
+            box.innerHTML = `
+                <table class="lineup-setup-table" style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <thead>
+                        <tr style="color:var(--muted);text-align:left;">
+                            <th style="width:52px;padding:4px;">棒次</th>
+                            <th style="padding:4px;">球員</th>
+                            <th style="padding:4px;">守備位置</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${players.map(p => `
+                            <tr data-player-row data-player-id="${p.id}" style="border-top:1px solid var(--border);">
+                                <td style="padding:4px;">
+                                    <input type="number" min="1" max="30" class="input lineup-order"
+                                           style="width:52px;padding:5px;font-size:12px;" placeholder="-">
+                                </td>
+                                <td style="padding:4px;">${BB.esc(p.name)}${p.jerseyNumber ? '（#' + BB.esc(p.jerseyNumber) + '）' : ''}</td>
+                                <td style="padding:4px;">
+                                    <select class="input lineup-position" style="padding:5px;font-size:12px;">
+                                        ${posOptions(p.position)}
+                                    </select>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        async function loadLineupSetup(teamSelectId, boxId) {
+            const teamId = document.getElementById(teamSelectId).value;
+            const box = document.getElementById(boxId);
+            if (!teamId) { box.innerHTML = ''; return; }
+            try {
+                const team = await BB.get('/api/teams/' + teamId);
+                renderLineupSetup(box, team.players || []);
+            } catch (e) {
+                BB.toast(e.message, true);
+            }
+        }
+
+        /** 自動把打線區塊中前 9 位球員依序填入棒次 1~9（沿用已選的守備位置） */
+        function autoFillLineup(boxId) {
+            const rows = document.querySelectorAll('#' + boxId + ' [data-player-row]');
+            rows.forEach((row, idx) => {
+                const orderInput = row.querySelector('.lineup-order');
+                orderInput.value = idx < 9 ? (idx + 1) : '';
+            });
+        }
+
+        /** 從打線區塊收集出有填棒次的球員，組成建立比賽 API 要的陣列；棒次重複則丟出錯誤訊息 */
+        function collectLineup(boxId, teamLabel) {
+            const rows = document.querySelectorAll('#' + boxId + ' [data-player-row]');
+            const entries = [];
+            const usedOrders = new Set();
+            rows.forEach(row => {
+                const orderVal = row.querySelector('.lineup-order').value.trim();
+                if (!orderVal) return;
+                const order = parseInt(orderVal, 10);
+                if (usedOrders.has(order)) throw new Error(teamLabel + ' 的棒次 ' + order + ' 重複，請確認');
+                usedOrders.add(order);
+                entries.push({
+                    playerId: parseInt(row.dataset.playerId, 10),
+                    battingOrder: order,
+                    position: row.querySelector('.lineup-position').value || null
+                });
+            });
+            return entries;
+        }
+
         newBtn.addEventListener('click', async () => {
             const form = document.getElementById('newGameForm');
             form.hidden = !form.hidden;
@@ -132,17 +226,28 @@
                 document.getElementById('gAway').innerHTML = options;
                 document.getElementById('gHome').innerHTML = options;
                 if (teams.length > 1) document.getElementById('gHome').selectedIndex = 1;
+                await loadLineupSetup('gAway', 'awayLineupBox');
+                await loadLineupSetup('gHome', 'homeLineupBox');
             }
         });
 
+        document.getElementById('gAway').addEventListener('change', () => loadLineupSetup('gAway', 'awayLineupBox'));
+        document.getElementById('gHome').addEventListener('change', () => loadLineupSetup('gHome', 'homeLineupBox'));
+        document.getElementById('autoAway').addEventListener('click', () => autoFillLineup('awayLineupBox'));
+        document.getElementById('autoHome').addEventListener('click', () => autoFillLineup('homeLineupBox'));
+
         document.getElementById('createGame').addEventListener('click', async () => {
             try {
+                const awayLineup = collectLineup('awayLineupBox', '客隊');
+                const homeLineup = collectLineup('homeLineupBox', '主隊');
                 const data = await BB.post('/api/games', {
                     name: document.getElementById('gName').value.trim(),
                     gameDate: document.getElementById('gDate').value || null,
                     venue: document.getElementById('gVenue').value.trim(),
                     awayTeamId: parseInt(document.getElementById('gAway').value, 10),
-                    homeTeamId: parseInt(document.getElementById('gHome').value, 10)
+                    homeTeamId: parseInt(document.getElementById('gHome').value, 10),
+                    awayLineup: awayLineup.length ? awayLineup : null,
+                    homeLineup: homeLineup.length ? homeLineup : null
                 });
                 location.href = '/games/' + data.id;
             } catch (e) {
