@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>線上棒球比賽紀錄表</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="login-shell">
+
+    <!-- Step 0：選擇登入方式 -->
+    <section id="step0">
+        <div class="hero">
+            <div class="ball-lg">⚾</div>
+            <h1>線上棒球比賽紀錄表</h1>
+            <p>記錄每一場比賽的精彩時刻</p>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h3 style="text-align:center;margin:4px 0 16px;font-size:16px;">選擇登入方式</h3>
+                <button class="btn btn-primary btn-block" id="toEmail">✉ 編輯者登入（Email）</button>
+                <a class="btn btn-block" href="/games" style="margin-top:10px;">👁 以瀏覽者身份進入</a>
+                <p style="text-align:center;color:var(--muted);font-size:12px;line-height:1.7;margin:14px 0 0;">
+                    瀏覽者僅能查看比賽紀錄，<br>無法新增或編輯比賽
+                </p>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="ico" style="background:var(--blue-soft);color:var(--blue);">📊</div>
+                <h4>完整紀錄</h4>
+                <p>詳細紀錄比賽數據與球員表現</p>
+            </div>
+            <div class="feature">
+                <div class="ico" style="background:#fff1e6;color:#ea7317;">📡</div>
+                <h4>即時更新</h4>
+                <p>即時記錄比賽狀況與投球紀錄</p>
+            </div>
+            <div class="feature">
+                <div class="ico" style="background:#e6f1fd;color:#2f7fd8;">☁</div>
+                <h4>雲端儲存</h4>
+                <p>安全保存所有比賽紀錄</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Step 1：輸入 Email -->
+    <section id="step1" hidden>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;">
+            <button class="icon-btn" data-back="0">‹</button>
+            <strong style="flex:1;text-align:center;margin-right:38px;">編輯者登入</strong>
+        </div>
+        <div class="card">
+            <div class="card-body" style="text-align:center;">
+                <div style="font-size:52px;margin:12px 0 6px;">📧</div>
+                <h3 style="margin:0 0 4px;">輸入 Email</h3>
+                <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">我們將發送驗證碼到您的信箱</p>
+
+                <div style="text-align:left;">
+                    <label class="field-label" for="email">Email</label>
+                    <input class="input" id="email" type="email" placeholder="example@email.com" autocomplete="email">
+                </div>
+                <button class="btn btn-primary btn-block" id="sendOtp" style="margin-top:16px;">發送驗證碼</button>
+                <div class="divider">或</div>
+                <a class="btn btn-block" href="/games">👁 以瀏覽者身份進入</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Step 2：輸入驗證碼 -->
+    <section id="step2" hidden>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;">
+            <button class="icon-btn" data-back="1">‹</button>
+            <strong style="flex:1;text-align:center;margin-right:38px;">編輯者登入</strong>
+        </div>
+        <div class="card">
+            <div class="card-body" style="text-align:center;">
+                <div style="font-size:52px;margin:12px 0 6px;">🔒</div>
+                <p style="color:var(--muted);font-size:13px;margin:0;">驗證碼已寄送至</p>
+                <h3 style="margin:2px 0 20px;" id="emailEcho">-</h3>
+
+                <div style="text-align:left;">
+                    <label class="field-label">輸入驗證碼</label>
+                    <p style="color:var(--muted);font-size:12px;margin:0 0 10px;">
+                        驗證碼將於 <span id="ttl">10</span> 分鐘後失效
+                    </p>
+                    <div class="otp-row">
+                        <input class="input" inputmode="numeric" maxlength="1" data-otp>
+                        <input class="input" inputmode="numeric" maxlength="1" data-otp>
+                        <input class="input" inputmode="numeric" maxlength="1" data-otp>
+                        <input class="input" inputmode="numeric" maxlength="1" data-otp>
+                        <input class="input" inputmode="numeric" maxlength="1" data-otp>
+                        <input class="input" inputmode="numeric" maxlength="1" data-otp>
+                    </div>
+                </div>
+
+                <p style="font-size:13px;color:var(--muted);margin:16px 0;">
+                    沒收到驗證碼？<button class="btn" id="resend" style="border:none;color:var(--blue);padding:0 4px;background:none;">重新發送</button>
+                    <span id="cooldown"></span>
+                </p>
+
+                <button class="btn btn-primary btn-block" id="verify">驗證並登入</button>
+                <a class="btn btn-block" href="/games" style="margin-top:10px;">👁 以瀏覽者身份進入</a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script src="/js/app.js"></script>
+<script th:inline="javascript">
+    const loggedIn = [[${loggedIn}]];
+    if (loggedIn) location.href = '/games';
+
+    const steps = [document.getElementById('step0'), document.getElementById('step1'), document.getElementById('step2')];
+    const show = i => steps.forEach((s, idx) => s.hidden = idx !== i);
+
+    document.getElementById('toEmail').addEventListener('click', () => show(1));
+    document.querySelectorAll('[data-back]').forEach(b =>
+        b.addEventListener('click', () => show(parseInt(b.dataset.back, 10))));
+
+    const otpInputs = [...document.querySelectorAll('[data-otp]')];
+    otpInputs.forEach((input, i) => {
+        input.addEventListener('input', () => {
+            input.value = input.value.replace(/\D/g, '').slice(0, 1);
+            if (input.value && i < otpInputs.length - 1) otpInputs[i + 1].focus();
+        });
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Backspace' && !input.value && i > 0) otpInputs[i - 1].focus();
+            if (e.key === 'Enter') document.getElementById('verify').click();
+        });
+        input.addEventListener('paste', e => {
+            const text = (e.clipboardData.getData('text') || '').replace(/\D/g, '');
+            if (!text) return;
+            e.preventDefault();
+            otpInputs.forEach((el, idx) => el.value = text[idx] || '');
+            otpInputs[Math.min(text.length, otpInputs.length) - 1].focus();
+        });
+    });
+
+    let cooldownTimer;
+    function startCooldown(seconds) {
+        const label = document.getElementById('cooldown');
+        clearInterval(cooldownTimer);
+        let left = seconds;
+        const tick = () => {
+            label.textContent = left > 0 ? `(${left}s)` : '';
+            if (left-- <= 0) clearInterval(cooldownTimer);
+        };
+        tick();
+        cooldownTimer = setInterval(tick, 1000);
+    }
+
+    async function sendOtp() {
+        const email = document.getElementById('email').value.trim();
+        if (!email) { BB.toast('請輸入 Email', true); return; }
+        try {
+            const data = await BB.post('/api/auth/otp', { email });
+            document.getElementById('emailEcho').textContent = email;
+            document.getElementById('ttl').textContent = data.ttlMinutes;
+            show(2);
+            otpInputs[0].focus();
+            startCooldown(60);
+            BB.toast('驗證碼已寄出，請至信箱查看');
+        } catch (e) {
+            BB.toast(e.message, true);
+        }
+    }
+
+    document.getElementById('sendOtp').addEventListener('click', sendOtp);
+    document.getElementById('resend').addEventListener('click', sendOtp);
+
+    document.getElementById('verify').addEventListener('click', async () => {
+        const email = document.getElementById('email').value.trim();
+        const code = otpInputs.map(i => i.value).join('');
+        if (code.length < otpInputs.length) { BB.toast('請輸入完整驗證碼', true); return; }
+        try {
+            const data = await BB.post('/api/auth/verify', { email, code });
+            location.href = data.redirect || '/games';
+        } catch (e) {
+            BB.toast(e.message, true);
+        }
+    });
+</script>
+</body>
+</html>

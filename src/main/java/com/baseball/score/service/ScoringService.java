@@ -1,0 +1,501 @@
+package com.baseball.score.service;
+
+import com.baseball.score.entity.*;
+import com.baseball.score.enums.*;
+import com.baseball.score.repository.*;
+import com.baseball.score.util.ApiException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+/**
+ * 記錄邏輯核心：投球、打席結果、壘包推進、換局、復原。
+ * 每次動作前會先寫一筆 game_snapshot，「上一打席」＝還原到上一個快照。
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ScoringService {
+
+    private final GameRepository gameRepo;
+    private final GameLineupRepository lineupRepo;
+    private final InningScoreRepository inningRepo;
+    private final AtBatRepository atBatRepo;
+    private final PitchRepository pitchRepo;
+    private final GameEventRepository eventRepo;
+    private final GameSnapshotRepository snapshotRepo;
+    private final ObjectMapper objectMapper;
+
+    // ------------------------------------------------------------ 查詢輔助
+
+    public Game getGame(Long gameId) {
+        return gameRepo.findById(gameId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "找不到比賽 id=" + gameId));
+    }
+
+    public TeamSide battingSide(Game game) {
+        return game.getHalf() == InningHalf.TOP ? TeamSide.AWAY : TeamSide.HOME;
+    }
+
+    public TeamSide fieldingSide(Game game) {
+        return battingSide(game) == TeamSide.AWAY ? TeamSide.HOME : TeamSide.AWAY;
+    }
+
+    public List<GameLineup> lineup(Game game, TeamSide side) {
+        return lineupRepo.findByGameIdAndTeamSideAndActiveTrueOrderByBattingOrderAsc(game.getId(), side);
+    }
+
+    public GameLineup currentBatter(Game game) {
+        List<GameLineup> list = lineup(game, battingSide(game));
+        if (list.isEmpty()) throw new ApiException("此比賽尚未設定打線");
+        int idx = batterIndex(game) % list.size();
+        return list.get(idx);
+    }
+
+    public GameLineup nextBatter(Game game) {
+        List<GameLineup> list = lineup(game, battingSide(game));
+        if (list.isEmpty()) return null;
+        return list.get((batterIndex(game) + 1) % list.size());
+    }
+
+    public GameLineup currentPitcher(Game game) {
+        Long id = fieldingSide(game) == TeamSide.AWAY ? game.getAwayPitcherLineupId() : game.getHomePitcherLineupId();
+        if (id != null) return lineupRepo.findById(id).orElse(null);
+        return lineup(game, fieldingSide(game)).stream()
+                .filter(l -> "投手".equals(l.getPosition())).findFirst().orElse(null);
+    }
+
+    private int batterIndex(Game game) {
+        return battingSide(game) == TeamSide.AWAY ? game.getAwayBatterIndex() : game.getHomeBatterIndex();
+    }
+
+    private void setBatterIndex(Game game, int idx) {
+        if (battingSide(game) == TeamSide.AWAY) game.setAwayBatterIndex(idx);
+        else game.setHomeBatterIndex(idx);
+    }
+
+    // ------------------------------------------------------------ 打席
+
+    @Transactional
+    public AtBat currentOrCreateAtBat(Game game) {
+        return atBatRepo.findFirstByGameIdAndFinishedFalseOrderBySeqNoDesc(game.getId())
+                .orElseGet(() -> {
+                    GameLineup batter = currentBatter(game);
+                    GameLineup pitcher = currentPitcher(game);
+                    int seq = atBatRepo.findFirstByGameIdOrderBySeqNoDesc(game.getId())
+                            .map(AtBat::getSeqNo).orElse(0) + 1;
+                    return atBatRepo.save(AtBat.builder()
+                            .game(game).seqNo(seq)
+                            .inning(game.getInning()).half(game.getHalf())
+                            .battingSide(battingSide(game))
+                            .batterLineup(batter)
+                            .pitcherLineupId(pitcher == null ? null : pitcher.getId())
+                            .actionSeq(game.getActionSeq())
+                            .build());
+                });
+    }
+
+    public List<Pitch> pitchesOfCurrentAtBat(Game game) {
+        return atBatRepo.findFirstByGameIdAndFinishedFalseOrderBySeqNoDesc(game.getId())
+                .map(ab -> pitchRepo.findByAtBatIdOrderBySeqNoDesc(ab.getId()))
+                .orElse(List.of());
+    }
+
+    // ------------------------------------------------------------ 記錄動作
+
+    /** 記錄一球（好球 / 壞球 / 界外球） */
+    @Transactional
+    public void recordPitch(Long gameId, PitchCall call, String pitchType, Integer speedKmh) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        snapshot(game, "PITCH_" + call.name());
+
+        AtBat atBat = currentOrCreateAtBat(game);
+        GameLineup batter = atBat.getBatterLineup();
+
+        switch (call) {
+            case STRIKE -> game.setStrikes(game.getStrikes() + 1);
+            case BALL -> game.setBalls(game.getBalls() + 1);
+            case FOUL -> { if (game.getStrikes() < 2) game.setStrikes(game.getStrikes() + 1); }
+        }
+
+        int seq = pitchRepo.findByAtBatIdOrderBySeqNoDesc(atBat.getId()).stream()
+                .mapToInt(Pitch::getSeqNo).max().orElse(0) + 1;
+        pitchRepo.save(Pitch.builder()
+                .game(game).atBat(atBat).seqNo(seq).call(call)
+                .pitchType(pitchType).speedKmh(speedKmh)
+                .ballsAfter(game.getBalls()).strikesAfter(game.getStrikes())
+                .actionSeq(game.getActionSeq())
+                .build());
+
+        addEvent(game, "PITCH", batter.getPlayer().getName(), call.getLabel(),
+                switch (call) { case STRIKE -> "green"; case BALL -> "yellow"; case FOUL -> "blue"; });
+
+        if (game.getStrikes() >= 3) {
+            applyResult(game, atBat, PlayResult.STRIKEOUT);
+        } else if (game.getBalls() >= 4) {
+            applyResult(game, atBat, PlayResult.WALK);
+        }
+        touch(game);
+    }
+
+    /** 記錄打席結果（安打、四壞球保送、雙殺打…） */
+    @Transactional
+    public void recordResult(Long gameId, PlayResult result) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        snapshot(game, "RESULT_" + result.name());
+        AtBat atBat = currentOrCreateAtBat(game);
+        applyResult(game, atBat, result);
+        touch(game);
+    }
+
+    /** 下一打席（沒有結果就跳過，例如換人） */
+    @Transactional
+    public void nextBatter(Long gameId) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        snapshot(game, "NEXT_BATTER");
+        AtBat atBat = atBatRepo.findFirstByGameIdAndFinishedFalseOrderBySeqNoDesc(game.getId()).orElse(null);
+        if (atBat != null) {
+            atBat.setFinished(true);
+            if (atBat.getResult() == null) atBat.setResult(PlayResult.OTHER);
+            atBatRepo.save(atBat);
+        }
+        rotateBatter(game);
+        resetCount(game);
+        touch(game);
+    }
+
+    /** 上一打席 / 復原：還原到上一個快照 */
+    @Transactional
+    public void undo(Long gameId) {
+        Game game = getGame(gameId);
+        GameSnapshot snap = snapshotRepo.findFirstByGameIdOrderByActionSeqDesc(gameId)
+                .orElseThrow(() -> new ApiException("已經是最初狀態，無法復原"));
+        restore(game, snap);
+        snapshotRepo.delete(snap);
+    }
+
+    /** 重新開始（清空所有紀錄） */
+    @Transactional
+    public void reset(Long gameId) {
+        Game game = getGame(gameId);
+        pitchRepo.deleteByGameId(gameId);
+        atBatRepo.deleteByGameId(gameId);
+        eventRepo.deleteByGameId(gameId);
+        snapshotRepo.deleteByGameId(gameId);
+        inningRepo.deleteByGameId(gameId);
+
+        game.setInning(1); game.setHalf(InningHalf.TOP);
+        game.setOuts(0); game.setBalls(0); game.setStrikes(0);
+        game.setRunnerFirst(null); game.setRunnerSecond(null); game.setRunnerThird(null);
+        game.setAwayScore(0); game.setHomeScore(0);
+        game.setAwayHits(0); game.setHomeHits(0);
+        game.setAwayErrors(0); game.setHomeErrors(0);
+        game.setAwayBatterIndex(0); game.setHomeBatterIndex(0);
+        game.setActionSeq(0L);
+        game.setStatus(GameStatus.LIVE);
+        lineupRepo.findByGameIdOrderByTeamSideAscBattingOrderAsc(gameId).forEach(l -> {
+            l.setAtBats(0); l.setHits(0); l.setRbi(0);
+            lineupRepo.save(l);
+        });
+        addEvent(game, "SYSTEM", null, "比賽已重新開始", "gray");
+        touch(game);
+    }
+
+    @Transactional
+    public void finish(Long gameId) {
+        Game game = getGame(gameId);
+        game.setStatus(GameStatus.FINISHED);
+        addEvent(game, "SYSTEM", null, "比賽結束", "gray");
+        touch(game);
+    }
+
+    @Transactional
+    public void start(Long gameId) {
+        Game game = getGame(gameId);
+        if (game.getStatus() == GameStatus.SCHEDULED) {
+            game.setStatus(GameStatus.LIVE);
+            addEvent(game, "SYSTEM", null, "比賽開始", "gray");
+            touch(game);
+        }
+    }
+
+    // ------------------------------------------------------------ 核心規則
+
+    private void applyResult(Game game, AtBat atBat, PlayResult result) {
+        TeamSide batting = battingSide(game);
+        GameLineup batter = atBat.getBatterLineup();
+
+        Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        int runs = 0;
+
+        if (result == PlayResult.HOME_RUN) {
+            for (int i = 0; i < 3; i++) if (bases[i] != null) { runs++; bases[i] = null; }
+            runs++; // 打者本人
+        } else if (result == PlayResult.WALK || result == PlayResult.HIT_BY_PITCH) {
+            // 保送：只推進被擠壓的跑者
+            if (bases[0] != null) {
+                if (bases[1] != null) {
+                    if (bases[2] != null) { runs++; }
+                    bases[2] = bases[1];
+                }
+                bases[1] = bases[0];
+            }
+            bases[0] = batter.getId();
+        } else {
+            int adv = result.getRunnerAdvance();
+            if (adv > 0) {
+                for (int i = 2; i >= 0; i--) {
+                    if (bases[i] == null) continue;
+                    int target = i + adv;               // 0=一壘,1=二壘,2=三壘
+                    if (target >= 3) { runs++; bases[i] = null; }
+                    else { bases[target] = bases[i]; bases[i] = null; }
+                }
+            }
+            if (result == PlayResult.DOUBLE_PLAY && bases[0] != null) bases[0] = null;
+            if (result == PlayResult.CAUGHT_STEALING) {
+                for (int i = 2; i >= 0; i--) if (bases[i] != null) { bases[i] = null; break; }
+            }
+            int b = result.getBases();
+            if (b >= 1 && b <= 3) bases[b - 1] = batter.getId();
+        }
+
+        game.setRunnerFirst(bases[0]);
+        game.setRunnerSecond(bases[1]);
+        game.setRunnerThird(bases[2]);
+
+        // 分數 / 安打 / 失誤
+        if (runs > 0) addRuns(game, batting, runs);
+        if (result.isHit()) addHit(game, batting);
+        if (result.isError()) addError(game, fieldingSide(game));
+        if (result.getOuts() > 0) game.setOuts(game.getOuts() + result.getOuts());
+
+        // 個人成績（本場打線上的 0-1 顯示；生涯累積打擊率改由 AtBat 紀錄動態計算，見 PlayerStatsService）
+        boolean countAtBat = result.isCountsAsAtBat();
+        if (countAtBat) batter.setAtBats(batter.getAtBats() + 1);
+        if (result.isHit()) batter.setHits(batter.getHits() + 1);
+        batter.setRbi(batter.getRbi() + runs);
+        lineupRepo.save(batter);
+
+        atBat.setResult(result);
+        atBat.setRbi(runs);
+        atBat.setRunsScored(runs);
+        atBat.setOutsRecorded(result.getOuts());
+        atBat.setFinished(true);
+        atBat.setDescription(batter.getPlayer().getName() + " " + result.getLabel()
+                + (runs > 0 ? "（帶有 " + runs + " 分打點）" : ""));
+        atBatRepo.save(atBat);
+
+        addEvent(game, "RESULT", batter.getPlayer().getName(),
+                result.getLabel() + (runs > 0 ? "，得 " + runs + " 分" : ""), colorOf(result));
+
+        rotateBatter(game);
+        resetCount(game);
+
+        if (game.getOuts() >= 3) changeHalfInning(game);
+    }
+
+    private String colorOf(PlayResult r) {
+        if (r.isHit() || r == PlayResult.HOME_RUN) return "blue";
+        if (r.getOuts() > 0) return "red";
+        if (r == PlayResult.WALK || r == PlayResult.HIT_BY_PITCH) return "yellow";
+        return "gray";
+    }
+
+    private void rotateBatter(Game game) {
+        List<GameLineup> list = lineup(game, battingSide(game));
+        if (list.isEmpty()) return;
+        setBatterIndex(game, (batterIndex(game) + 1) % list.size());
+    }
+
+    private void resetCount(Game game) {
+        game.setBalls(0);
+        game.setStrikes(0);
+    }
+
+    private void changeHalfInning(Game game) {
+        game.setOuts(0);
+        resetCount(game);
+        game.setRunnerFirst(null);
+        game.setRunnerSecond(null);
+        game.setRunnerThird(null);
+
+        if (game.getHalf() == InningHalf.TOP) {
+            game.setHalf(InningHalf.BOTTOM);
+        } else {
+            game.setHalf(InningHalf.TOP);
+            game.setInning(game.getInning() + 1);
+        }
+        addEvent(game, "INNING", null, "換局：" + game.getInning() + "局" + game.getHalf().getLabel(), "gray");
+
+        if (game.getInning() > game.getTotalInnings()) {
+            game.setStatus(GameStatus.FINISHED);
+            addEvent(game, "SYSTEM", null, "比賽結束", "gray");
+        }
+    }
+
+    private void addRuns(Game game, TeamSide side, int runs) {
+        if (side == TeamSide.AWAY) game.setAwayScore(game.getAwayScore() + runs);
+        else game.setHomeScore(game.getHomeScore() + runs);
+        InningScore is = inningScore(game, side, game.getInning());
+        is.setRuns(is.getRuns() + runs);
+        inningRepo.save(is);
+    }
+
+    private void addHit(Game game, TeamSide side) {
+        if (side == TeamSide.AWAY) game.setAwayHits(game.getAwayHits() + 1);
+        else game.setHomeHits(game.getHomeHits() + 1);
+        InningScore is = inningScore(game, side, game.getInning());
+        is.setHits(is.getHits() + 1);
+        inningRepo.save(is);
+    }
+
+    private void addError(Game game, TeamSide side) {
+        if (side == TeamSide.AWAY) game.setAwayErrors(game.getAwayErrors() + 1);
+        else game.setHomeErrors(game.getHomeErrors() + 1);
+        InningScore is = inningScore(game, side, game.getInning());
+        is.setErrors(is.getErrors() + 1);
+        inningRepo.save(is);
+    }
+
+    private InningScore inningScore(Game game, TeamSide side, int inning) {
+        return inningRepo.findByGameIdAndTeamSideAndInning(game.getId(), side, inning)
+                .orElseGet(() -> inningRepo.save(InningScore.builder()
+                        .game(game).teamSide(side).inning(inning).build()));
+    }
+
+    private void addEvent(Game game, String type, String playerName, String description, String color) {
+        eventRepo.save(GameEvent.builder()
+                .game(game).inning(game.getInning()).half(game.getHalf())
+                .eventType(type).playerName(playerName)
+                .description(description).colorTag(color)
+                .actionSeq(game.getActionSeq())
+                .build());
+    }
+
+    private void assertLive(Game game) {
+        if (game.getStatus() == GameStatus.FINISHED) {
+            throw new ApiException("比賽已結束，無法再記錄");
+        }
+        if (game.getStatus() == GameStatus.SCHEDULED) {
+            game.setStatus(GameStatus.LIVE);
+        }
+    }
+
+    private void touch(Game game) {
+        game.setUpdatedAt(LocalDateTime.now());
+        gameRepo.save(game);
+    }
+
+    // ------------------------------------------------------------ 快照 / 復原
+
+    private void snapshot(Game game, String actionName) {
+        try {
+            Map<String, Object> state = new LinkedHashMap<>();
+            state.put("inning", game.getInning());
+            state.put("half", game.getHalf().name());
+            state.put("outs", game.getOuts());
+            state.put("balls", game.getBalls());
+            state.put("strikes", game.getStrikes());
+            state.put("runnerFirst", game.getRunnerFirst());
+            state.put("runnerSecond", game.getRunnerSecond());
+            state.put("runnerThird", game.getRunnerThird());
+            state.put("awayScore", game.getAwayScore());
+            state.put("homeScore", game.getHomeScore());
+            state.put("awayHits", game.getAwayHits());
+            state.put("homeHits", game.getHomeHits());
+            state.put("awayErrors", game.getAwayErrors());
+            state.put("homeErrors", game.getHomeErrors());
+            state.put("awayBatterIndex", game.getAwayBatterIndex());
+            state.put("homeBatterIndex", game.getHomeBatterIndex());
+            state.put("status", game.getStatus().name());
+
+            List<Map<String, Object>> innings = new ArrayList<>();
+            for (InningScore is : inningRepo.findByGameIdOrderByInningAsc(game.getId())) {
+                innings.add(Map.of("side", is.getTeamSide().name(), "inning", is.getInning(),
+                        "runs", is.getRuns(), "hits", is.getHits(), "errors", is.getErrors()));
+            }
+            state.put("innings", innings);
+
+            List<Map<String, Object>> lineups = new ArrayList<>();
+            for (GameLineup l : lineupRepo.findByGameIdOrderByTeamSideAscBattingOrderAsc(game.getId())) {
+                lineups.add(Map.of("id", l.getId(), "atBats", l.getAtBats(), "hits", l.getHits(), "rbi", l.getRbi()));
+            }
+            state.put("lineups", lineups);
+
+            long seq = game.getActionSeq() + 1;
+            game.setActionSeq(seq);
+            snapshotRepo.save(GameSnapshot.builder()
+                    .game(game).actionSeq(seq).actionName(actionName)
+                    .stateJson(objectMapper.writeValueAsString(state))
+                    .build());
+        } catch (Exception e) {
+            throw new ApiException("建立還原點失敗：" + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void restore(Game game, GameSnapshot snap) {
+        try {
+            Map<String, Object> state = objectMapper.readValue(snap.getStateJson(), Map.class);
+
+            // 刪掉此動作之後產生的紀錄
+            pitchRepo.deleteAll(pitchRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
+            atBatRepo.deleteAll(atBatRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
+            eventRepo.deleteAll(eventRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
+
+            game.setInning(asInt(state.get("inning")));
+            game.setHalf(InningHalf.valueOf((String) state.get("half")));
+            game.setOuts(asInt(state.get("outs")));
+            game.setBalls(asInt(state.get("balls")));
+            game.setStrikes(asInt(state.get("strikes")));
+            game.setRunnerFirst(asLong(state.get("runnerFirst")));
+            game.setRunnerSecond(asLong(state.get("runnerSecond")));
+            game.setRunnerThird(asLong(state.get("runnerThird")));
+            game.setAwayScore(asInt(state.get("awayScore")));
+            game.setHomeScore(asInt(state.get("homeScore")));
+            game.setAwayHits(asInt(state.get("awayHits")));
+            game.setHomeHits(asInt(state.get("homeHits")));
+            game.setAwayErrors(asInt(state.get("awayErrors")));
+            game.setHomeErrors(asInt(state.get("homeErrors")));
+            game.setAwayBatterIndex(asInt(state.get("awayBatterIndex")));
+            game.setHomeBatterIndex(asInt(state.get("homeBatterIndex")));
+            game.setStatus(GameStatus.valueOf((String) state.get("status")));
+            game.setActionSeq(snap.getActionSeq() - 1);
+
+            inningRepo.deleteAll(inningRepo.findByGameIdOrderByInningAsc(game.getId()));
+            for (Map<String, Object> m : (List<Map<String, Object>>) state.get("innings")) {
+                inningRepo.save(InningScore.builder()
+                        .game(game)
+                        .teamSide(TeamSide.valueOf((String) m.get("side")))
+                        .inning(asInt(m.get("inning")))
+                        .runs(asInt(m.get("runs")))
+                        .hits(asInt(m.get("hits")))
+                        .errors(asInt(m.get("errors")))
+                        .build());
+            }
+            for (Map<String, Object> m : (List<Map<String, Object>>) state.get("lineups")) {
+                lineupRepo.findById(asLong(m.get("id"))).ifPresent(l -> {
+                    l.setAtBats(asInt(m.get("atBats")));
+                    l.setHits(asInt(m.get("hits")));
+                    l.setRbi(asInt(m.get("rbi")));
+                    lineupRepo.save(l);
+                });
+            }
+            touch(game);
+        } catch (Exception e) {
+            throw new ApiException("復原失敗：" + e.getMessage());
+        }
+    }
+
+    private int asInt(Object o) { return o == null ? 0 : ((Number) o).intValue(); }
+    private Long asLong(Object o) { return o == null ? null : ((Number) o).longValue(); }
+}

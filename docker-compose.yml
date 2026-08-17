@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: baseball-db
+    environment:
+      POSTGRES_DB: baseball
+      POSTGRES_USER: baseball
+      POSTGRES_PASSWORD: baseball123
+      TZ: Asia/Taipei
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baseball -d baseball"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: baseball-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/baseball
+      DB_USER: baseball
+      DB_PASSWORD: baseball123
+      # ---- JavaMail (Gmail app password / SMTP relay) ----
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: "587"
+      MAIL_USERNAME: your-account@gmail.com
+      MAIL_PASSWORD: your-app-password
+      MAIL_FROM: your-account@gmail.com
+      APP_SEED: "true"
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

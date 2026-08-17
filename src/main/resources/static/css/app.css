@@ -1,0 +1,469 @@
+/* ==========================================================================
+   線上棒球比賽紀錄表 — 共用樣式（PC / Mobile、編輯 / 檢視）
+   ========================================================================== */
+:root {
+    --blue: #1d4ed8;
+    --blue-soft: #e8effd;
+    --red: #dc2626;
+    --red-soft: #fdeaea;
+    --navy: #101d33;
+    --navy-2: #16253d;
+    --navy-line: #2a3a55;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #e4e8ef;
+    --text: #0f172a;
+    --muted: #64748b;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --gray-dot: #cbd5e1;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
+    --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+table { border-collapse: collapse; width: 100%; }
+
+/* ---------------------------------------------------------------- 版面 */
+.wrap { max-width: 1560px; margin: 0 auto; padding: 16px 20px 32px; }
+.wrap-mobile { max-width: 480px; margin: 0 auto; padding: 10px 12px 96px; }
+
+.topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 6px 0 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; }
+.brand .ball {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--navy);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--red); flex: none;
+}
+.topbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); background: #fff; color: var(--text);
+    border-radius: 10px; padding: 9px 14px; font-size: 14px; font-weight: 500;
+    transition: background .15s, border-color .15s, opacity .15s;
+}
+.btn:hover { background: #f8fafc; }
+.btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn-primary:hover { background: #1a45bd; }
+.btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
+.btn-danger:hover { background: #bd1f1f; }
+.btn-block { width: 100%; justify-content: center; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--blue-soft); color: var(--blue);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600;
+}
+.badge-muted { background: #f1f5f9; color: var(--muted); }
+.auto-refresh { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+.card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+}
+.card-title { padding: 14px 16px 0; font-size: 15px; font-weight: 700; }
+.card-sub { padding: 4px 16px 0; font-size: 12px; color: var(--muted); }
+.card-body { padding: 14px 16px; }
+
+/* ---------------------------------------------------------------- 比分面板 */
+.scorepanel {
+    background: var(--navy); color: #fff; border-radius: var(--radius);
+    display: grid; grid-template-columns: 300px 1fr 1fr 260px;
+    gap: 0; overflow: hidden; margin-bottom: 16px;
+}
+.scorepanel > div { padding: 16px 20px; }
+.scorepanel > div + div { border-left: 1px solid var(--navy-line); }
+
+.info-table { font-size: 13px; }
+.info-table td { padding: 3px 0; color: #dbe4f0; }
+.info-table td:first-child { color: #8fa2bd; width: 76px; }
+
+.score-main { display: flex; align-items: center; justify-content: center; gap: 22px; }
+.score-team { text-align: center; min-width: 76px; }
+.score-team .tname { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+.score-team .tnum { font-size: 46px; font-weight: 800; line-height: 1; }
+.score-team.away .tname, .score-team.away .tnum { color: #60a5fa; }
+.score-team.home .tname, .score-team.home .tnum { color: #f87171; }
+.score-mid { text-align: center; color: #cbd5e1; }
+.score-mid .inning { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+.score-mid .count { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+.score-mid .count small { font-size: 12px; color: #94a3b8; margin-left: 4px; }
+
+.counts { display: flex; align-items: center; justify-content: center; gap: 26px; height: 100%; }
+.count-col { text-align: center; }
+.count-col .label { font-size: 12px; color: #a8b7cc; margin-bottom: 8px; }
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dot { width: 15px; height: 15px; border-radius: 50%; background: #3a4b66; }
+.dot.on-strike { background: var(--green); }
+.dot.on-ball { background: var(--yellow); }
+.dot.on-out { background: var(--red); }
+
+.bases-box { text-align: center; }
+.bases-box .label { font-size: 12px; color: #a8b7cc; margin-bottom: 6px; }
+.diamond { position: relative; width: 150px; height: 96px; margin: 0 auto; }
+.base {
+    position: absolute; width: 20px; height: 20px; background: #64748b;
+    transform: rotate(45deg); border-radius: 3px;
+}
+.base.on { background: #facc15; }
+.base.second { top: 6px; left: 65px; }
+.base.third { top: 38px; left: 26px; }
+.base.first { top: 38px; left: 104px; }
+.base.home { top: 68px; left: 65px; }
+.base-label { position: absolute; font-size: 11px; color: #b6c4d8; }
+.base-label.second { top: -8px; left: 58px; }
+.base-label.third { top: 36px; left: -12px; }
+.base-label.first { top: 36px; left: 130px; }
+.base-label.home { top: 74px; left: 92px; }
+
+/* ---------------------------------------------------------------- 打線 */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); }
+.tab {
+    padding: 12px 0; text-align: center; font-size: 14px; font-weight: 700;
+    background: #fff; border: none; color: var(--muted);
+}
+.tab.active.away { background: var(--blue); color: #fff; }
+.tab.active.home { background: var(--red); color: #fff; }
+
+.lineup-head {
+    padding: 12px 0; text-align: center; font-size: 15px; font-weight: 700; color: #fff;
+}
+.lineup-head.away { background: var(--blue); }
+.lineup-head.home { background: var(--red); }
+
+.lineup { font-size: 13px; }
+.lineup th {
+    font-weight: 500; color: var(--muted); font-size: 12px;
+    padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: left;
+}
+.lineup td { padding: 9px 8px; border-bottom: 1px solid #f1f4f8; }
+.lineup td.order { font-weight: 700; }
+.lineup .away td.order { color: var(--blue); }
+.lineup .home td.order { color: var(--red); }
+.lineup td.avg, .lineup th.avg { text-align: right; }
+.lineup tr.current { background: var(--blue-soft); }
+.lineup tr.current.home-row { background: var(--red-soft); }
+
+.batter-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border); background: #fbfcfe;
+}
+.batter-foot .who { display: flex; align-items: center; gap: 10px; }
+.batter-foot .chip {
+    width: 34px; height: 34px; border-radius: 8px; background: var(--blue-soft);
+    color: var(--blue); font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.batter-foot .chip.home { background: var(--red-soft); color: var(--red); }
+.batter-foot .nm { font-size: 14px; font-weight: 600; }
+.batter-foot .pos { font-size: 12px; color: var(--muted); }
+.batter-foot .today { text-align: right; }
+.batter-foot .today .lbl { font-size: 11px; color: var(--muted); }
+.batter-foot .today .val { font-size: 18px; font-weight: 800; color: var(--red); }
+
+/* ---------------------------------------------------------------- 打席結果按鈕 */
+.result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.result-btn {
+    border-radius: 10px; padding: 13px 6px; font-size: 14px; font-weight: 600;
+    border: 1px solid; background: #fff; transition: transform .08s, filter .15s;
+}
+.result-btn:hover { filter: brightness(.97); }
+.result-btn:active { transform: scale(.98); }
+.rb-hit    { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+.rb-walk   { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+.rb-infield{ border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
+.rb-out    { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.rb-bad    { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+
+.result-echo {
+    margin-top: 12px; border-radius: 10px; background: #f4f6f9;
+    color: var(--muted); text-align: center; padding: 22px 12px; font-size: 14px;
+}
+.nav-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; margin-top: 12px; }
+
+/* ---------------------------------------------------------------- 球數 / 投球紀錄 */
+.pitch-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pitch-btn { border: none; border-radius: 10px; padding: 18px 4px; font-size: 15px; font-weight: 700; color: #fff; }
+.pb-strike { background: var(--green); }
+.pb-ball { background: var(--yellow); }
+.pb-foul { background: var(--blue); }
+
+.pitch-list { display: flex; flex-direction: column; gap: 8px; }
+/* 投球紀錄過長時自行捲動，不會把左側記分板一起撐高 */
+.pitch-list.scroll-area { max-height: 264px; overflow-y: auto; padding-right: 4px; }
+.pitch-list.scroll-area::-webkit-scrollbar { width: 6px; }
+.pitch-list.scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.pitch-list .pitch-row:last-child { border-bottom: none; }
+.scroll-hint { font-size: 11px; color: var(--muted); text-align: right; padding-top: 6px; }
+.pitch-row {
+    display: grid; grid-template-columns: 22px 58px 1fr auto auto; gap: 10px;
+    align-items: center; font-size: 13px; padding: 7px 4px; border-bottom: 1px solid #f1f4f8;
+}
+.pitch-row .no { color: var(--muted); }
+.pitch-tag { border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 600; text-align: center; }
+.tag-strike { background: #dcfce7; color: #15803d; }
+.tag-ball { background: #fef9c3; color: #a16207; }
+.tag-foul { background: #dbeafe; color: #1d4ed8; }
+.pitch-row .speed { color: var(--muted); }
+.pitch-row .cnt { color: var(--muted); }
+.empty { color: var(--muted); font-size: 13px; text-align: center; padding: 18px 0; }
+
+/* ---------------------------------------------------------------- 記分板 */
+.scoreboard { background: var(--navy); border-radius: var(--radius); overflow: hidden; }
+.scoreboard table { color: #fff; font-size: 13px; }
+.scoreboard th, .scoreboard td { padding: 10px 6px; text-align: center; border-right: 1px solid var(--navy-line); }
+.scoreboard thead th { background: var(--navy-2); font-weight: 600; color: #cbd5e1; }
+.scoreboard thead th.now { background: var(--blue); color: #fff; }
+.scoreboard tbody tr + tr td { border-top: 1px solid var(--navy-line); }
+.scoreboard td.team { text-align: left; padding-left: 14px; font-weight: 700; width: 90px; }
+.scoreboard td.team.away { color: #60a5fa; }
+.scoreboard td.team.home { color: #f87171; }
+.scoreboard td.now { background: rgba(29, 78, 216, .18); }
+
+/* ---------------------------------------------------------------- 近期賽況 */
+.feed { display: flex; flex-direction: column; gap: 10px; }
+.feed-row { display: grid; grid-template-columns: 10px 62px 72px 1fr; gap: 10px; align-items: center; font-size: 13px; }
+.feed-dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-green { background: var(--green); }
+.dot-yellow { background: var(--yellow); }
+.dot-blue { background: var(--blue); }
+.dot-red { background: var(--red); }
+.dot-gray { background: var(--gray-dot); }
+.feed-row .when { color: var(--muted); }
+
+/* ---------------------------------------------------------------- 守備陣型 */
+.field {
+    position: relative; width: 100%; padding-top: 78%;
+    background: radial-gradient(circle at 50% 88%, #d8b98a 0 26%, transparent 26.5%), #4e9a4a;
+    border-radius: 10px; overflow: hidden;
+}
+.field-inner { position: absolute; inset: 0; }
+.field svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pos-chip {
+    position: absolute; transform: translate(-50%, -50%); text-align: center;
+    font-size: 11px; white-space: nowrap;
+}
+.pos-chip .pos-name {
+    background: var(--navy); color: #fff; border-radius: 5px;
+    padding: 2px 7px; display: inline-block; margin-bottom: 3px;
+}
+.pos-chip .pos-player {
+    background: #fff; border-radius: 5px; padding: 3px 8px; display: inline-block;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25); font-weight: 600;
+}
+.pos-chip .pos-player .num { color: var(--red); margin-right: 3px; }
+
+/* ---------------------------------------------------------------- PC 版格線 */
+.grid-editor {
+    display: grid; grid-template-columns: 1fr 1.55fr 1fr;
+    gap: 16px; align-items: start;
+}
+.grid-editor-bottom { display: grid; grid-template-columns: 2.62fr 1fr; gap: 16px; margin-top: 16px; }
+.grid-viewer { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 16px; align-items: start; }
+.grid-viewer-bottom { display: grid; grid-template-columns: 2.1fr 1fr; gap: 16px; margin-top: 16px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---------------------------------------------------------------- Mobile */
+.m-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 10px 2px 12px;
+}
+.m-title { font-size: 16px; font-weight: 700; line-height: 1.25; }
+.m-title small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+.icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+    background: #fff; display: inline-flex; align-items: center; justify-content: center;
+}
+
+.m-scorepanel { background: var(--navy); color: #fff; border-radius: var(--radius); padding: 14px; }
+.m-score-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.m-score-row .tname { font-size: 15px; font-weight: 700; }
+.m-score-row .tnum { font-size: 34px; font-weight: 800; line-height: 1.1; }
+.m-score-row .away .tname, .m-score-row .away .tnum { color: #60a5fa; }
+.m-score-row .home .tname, .m-score-row .home .tnum { color: #f87171; }
+.m-score-mid { text-align: center; color: #cbd5e1; font-size: 13px; }
+.m-score-mid .count { font-size: 17px; font-weight: 700; margin-top: 4px; }
+.m-counts { display: grid; grid-template-columns: 1fr 1fr 1fr 118px; gap: 8px; margin-top: 12px;
+    border-top: 1px solid var(--navy-line); padding-top: 12px; align-items: center; }
+.m-counts .count-col .label { font-size: 11px; }
+.m-counts .dot { width: 12px; height: 12px; }
+.m-counts .diamond { width: 112px; height: 74px; }
+.m-counts .base { width: 15px; height: 15px; }
+.m-counts .base.second { top: 4px; left: 49px; }
+.m-counts .base.third { top: 28px; left: 20px; }
+.m-counts .base.first { top: 28px; left: 78px; }
+.m-counts .base.home { top: 52px; left: 49px; }
+.m-counts .base-label { font-size: 9px; }
+.m-counts .base-label.second { top: -8px; left: 44px; }
+.m-counts .base-label.third { top: 26px; left: -8px; }
+.m-counts .base-label.first { top: 26px; left: 98px; }
+.m-counts .base-label.home { top: 56px; left: 70px; }
+
+.m-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; margin-top: 12px; align-items: start; }
+.m-cols-viewer { display: grid; grid-template-columns: 88px 1fr 88px; gap: 8px; margin-top: 12px; align-items: start; }
+.m-mini-lineup { font-size: 12px; }
+.m-mini-lineup td { padding: 8px 6px; border-bottom: 1px solid #f1f4f8; }
+.m-mini-lineup td.order { font-weight: 700; width: 16px; }
+.m-mini-lineup .away td.order { color: var(--blue); }
+.m-mini-lineup .home td.order { color: var(--red); }
+.m-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.m-result-grid .result-btn { font-size: 13px; padding: 11px 4px; }
+.m-pitch-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.m-pitch-btns .pitch-btn { padding: 13px 2px; font-size: 14px; }
+
+.m-footer {
+    position: fixed; left: 0; right: 0; bottom: 0; background: #fff;
+    border-top: 1px solid var(--border); padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    max-width: 480px; margin: 0 auto;
+}
+.m-footer .nav-row { margin-top: 10px; }
+.m-scroll { max-height: 220px; overflow-y: auto; }
+.m-footer .nav-row + .readonly-note { padding-bottom: 0; }
+
+/* ---------------------------------------------------------------- 登入頁 */
+.login-shell { max-width: 420px; margin: 0 auto; padding: 24px 20px 48px; }
+.hero {
+    background: linear-gradient(180deg, #dbeafe 0%, #eef4ff 60%, #f7fafc 100%);
+    border-radius: 18px; padding: 40px 20px 32px; text-align: center; margin-bottom: 18px;
+}
+.hero .ball-lg {
+    width: 74px; height: 74px; border-radius: 50%; background: #fff;
+    border: 3px solid var(--navy); display: inline-flex; align-items: center; justify-content: center;
+    font-size: 34px; color: var(--red); margin-bottom: 14px;
+}
+.hero h1 { font-size: 24px; margin: 0 0 6px; }
+.hero p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.field-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block; }
+.input {
+    width: 100%; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 15px; font-family: inherit; background: #fff;
+}
+.input:focus { outline: 2px solid var(--blue); outline-offset: 0; border-color: transparent; }
+.otp-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.otp-row .input { text-align: center; font-size: 20px; font-weight: 700; padding: 12px 0; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; margin: 16px 0; }
+.divider::before, .divider::after { content: ""; height: 1px; background: var(--border); flex: 1; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; text-align: center; }
+.feature .ico {
+    width: 46px; height: 46px; border-radius: 14px; margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.feature h4 { margin: 0 0 4px; font-size: 13px; }
+.feature p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* ---------------------------------------------------------------- 比賽列表 */
+.filter-tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; margin-bottom: 14px;
+}
+.filter-tabs .tab { border-bottom: 2px solid transparent; }
+.filter-tabs .tab.active { color: var(--blue); border-bottom-color: var(--blue); background: #fff; }
+.filter-tabs .tab .count {
+    display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px;
+    border-radius: 9px; background: var(--blue); color: #fff; font-size: 11px;
+}
+
+.game-card { display: block; padding: 16px; }
+.game-card:hover { border-color: #c7d2e4; }
+.game-card + .game-card { margin-top: 12px; }
+.game-card .row1 { display: flex; align-items: center; justify-content: space-between; }
+.pill { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 8px; }
+.pill-live { background: #dcfce7; color: #15803d; }
+.pill-done { background: #f1f5f9; color: var(--muted); }
+.game-card .score-line { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 12px 0 8px; }
+.game-card .score-line .n { font-size: 26px; font-weight: 800; }
+.game-card .teamname { font-weight: 600; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- 球隊管理 */
+.team-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.team-card + .team-card { margin-top: 10px; }
+.team-badge {
+    width: 42px; height: 42px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 16px;
+}
+.player-table td, .player-table th { padding: 10px 8px; border-bottom: 1px solid #f1f4f8; font-size: 13px; }
+.player-table th { color: var(--muted); font-size: 12px; font-weight: 500; text-align: left; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+
+/* ---------------------------------------------------------------- 球員本場表現 */
+.modal-mask {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, .45);
+    display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
+}
+.modal-card {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 520px;
+    max-height: 84vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; padding: 16px; border-bottom: 1px solid var(--border);
+}
+.modal-body { padding: 16px; overflow-y: auto; }
+.modal-close { border: none; background: none; font-size: 22px; line-height: 1; color: var(--muted); }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.stat-box { background: #f6f8fb; border-radius: 10px; padding: 10px 6px; text-align: center; }
+.stat-box .v { font-size: 18px; font-weight: 800; }
+.stat-box .k { font-size: 11px; color: var(--muted); }
+.ab-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.ab-card + .ab-card { margin-top: 10px; }
+.ab-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
+.ab-result { font-weight: 700; border-radius: 6px; padding: 3px 10px; font-size: 12px; }
+.res-blue { background: #dbeafe; color: #1d4ed8; }
+.res-red { background: #fee2e2; color: #b91c1c; }
+.res-yellow { background: #fef9c3; color: #a16207; }
+.res-gray { background: #f1f5f9; color: var(--muted); }
+.pitch-seq { display: flex; flex-wrap: wrap; gap: 6px; }
+.pitch-ball {
+    width: 26px; height: 26px; border-radius: 50%; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+}
+.pb-s { background: var(--green); }
+.pb-b { background: var(--yellow); }
+.pb-f { background: var(--blue); }
+.pitch-detail { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.7; }
+.clickable-name { color: var(--blue); text-decoration: underline dotted; cursor: pointer; }
+
+/* ---------------------------------------------------------------- 提示 */
+.toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: var(--navy); color: #fff; padding: 11px 18px; border-radius: 10px;
+    font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 90;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+.toast.error { background: var(--red); }
+
+.readonly-note { font-size: 12px; color: var(--muted); text-align: center; padding: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
+
+@media (max-width: 1180px) {
+    .scorepanel { grid-template-columns: 1fr 1fr; }
+    .scorepanel > div:nth-child(3) { border-left: none; }
+    .grid-editor, .grid-viewer { grid-template-columns: 1fr; }
+    .grid-editor-bottom, .grid-viewer-bottom { grid-template-columns: 1fr; }
+}

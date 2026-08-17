@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="|線上棒球比賽紀錄表（檢視模式）— ${gameName}|">線上棒球比賽紀錄表（檢視模式）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="ball">⚾</span>
+            <span>線上棒球比賽紀錄表（檢視模式）</span>
+        </div>
+        <div class="topbar-actions">
+            <span class="badge">👁 僅可檢視</span>
+            <a class="btn" href="/games">比賽列表</a>
+            <span class="auto-refresh">🔄 <span data-refresh-label>自動更新：剛剛</span></span>
+            <a class="btn" th:if="${!loggedIn}" href="/">編輯者登入</a>
+            <a class="btn" th:if="${loggedIn}" th:href="@{'/games/' + ${gameId}}">回到編輯模式</a>
+        </div>
+    </header>
+
+    <section class="scorepanel">
+        <div>
+            <table class="info-table">
+                <tr><td colspan="2" style="color:#fff;font-weight:700;padding-bottom:6px;">比賽資訊</td></tr>
+                <tr><td>比賽名稱</td><td data-f="name">-</td></tr>
+                <tr><td>比賽日期</td><td data-f="gameDate">-</td></tr>
+                <tr><td>球場</td><td data-f="venue">-</td></tr>
+                <tr><td>備註</td><td data-f="remark">-</td></tr>
+            </table>
+        </div>
+        <div class="score-main">
+            <div class="score-team away">
+                <div class="tname" data-f="awayName">-</div>
+                <div class="tnum" data-f="awayScore">0</div>
+            </div>
+            <div class="score-mid">
+                <div class="inning">▾ <span data-f="inningLabel">1局上</span></div>
+                <div class="count"><span data-f="countLabel">0 - 0</span> &nbsp;|&nbsp; <span data-f="outs">0</span><small>OUT</small></div>
+            </div>
+            <div class="score-team home">
+                <div class="tname" data-f="homeName">-</div>
+                <div class="tnum" data-f="homeScore">0</div>
+            </div>
+        </div>
+        <div>
+            <div class="counts">
+                <div class="count-col"><div class="label">好球 (S)</div><div class="dots" data-dots-strike></div></div>
+                <div class="count-col"><div class="label">壞球 (B)</div><div class="dots" data-dots-ball></div></div>
+                <div class="count-col"><div class="label">出局數 (OUT)</div><div class="dots" data-dots-out></div></div>
+            </div>
+        </div>
+        <div class="bases-box">
+            <div class="label">壘包狀態</div>
+            <div class="diamond">
+                <span class="base-label second">二壘</span>
+                <span class="base-label third">三壘</span>
+                <span class="base-label first">一壘</span>
+                <span class="base-label home">本壘</span>
+                <span class="base second" data-base-second></span>
+                <span class="base third" data-base-third></span>
+                <span class="base first" data-base-first></span>
+                <span class="base home"></span>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid-viewer">
+        <!-- 客隊打線 -->
+        <section class="card">
+            <div class="lineup-head away">藍隊打線</div>
+            <table class="lineup">
+                <thead><tr><th>棒次</th><th>背號</th><th>球員</th><th>守備位置</th><th class="avg">打擊率</th></tr></thead>
+                <tbody id="awayBody"></tbody>
+            </table>
+            <div class="batter-foot" id="awayFoot"></div>
+        </section>
+
+        <!-- 守備陣型 -->
+        <section class="card">
+            <div class="card-title">守備陣型（<span id="defenseTeam">-</span>守備）</div>
+            <div class="card-body">
+                <div class="field" id="field"></div>
+            </div>
+        </section>
+
+        <!-- 主隊打線 -->
+        <section class="card">
+            <div class="lineup-head home">紅隊打線</div>
+            <table class="lineup">
+                <thead><tr><th>棒次</th><th>背號</th><th>球員</th><th>守備位置</th><th class="avg">打擊率</th></tr></thead>
+                <tbody id="homeBody"></tbody>
+            </table>
+            <div class="batter-foot" id="homeFoot"></div>
+        </section>
+    </div>
+
+    <div class="grid-viewer-bottom">
+        <div class="scoreboard" id="scoreboard"></div>
+        <section class="card">
+            <div class="card-title">近期賽況</div>
+            <div class="card-body"><div class="feed" id="feed"></div></div>
+        </section>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script th:inline="javascript">
+    const GAME_ID = [[${gameId}]];
+
+    function render(state) {
+        const g = state.game;
+        const set = (k, v) => document.querySelectorAll('[data-f="' + k + '"]').forEach(el => el.textContent = v);
+        set('name', g.name); set('gameDate', g.gameDate); set('venue', g.venue); set('remark', g.remark);
+        set('inningLabel', g.inningLabel); set('countLabel', g.countLabel); set('outs', g.outs);
+        set('awayName', state.away.name); set('homeName', state.home.name);
+        set('awayScore', state.away.score); set('homeScore', state.home.score);
+        document.querySelector('.lineup-head.away').textContent = state.away.name + '打線';
+        document.querySelector('.lineup-head.home').textContent = state.home.name + '打線';
+
+        BB.renderCounts(document, g);
+        BB.renderBases(document, g.bases);
+
+        BB.renderLineup(document.getElementById('awayBody'), state.awayLineup, 'away');
+        BB.renderLineup(document.getElementById('homeBody'), state.homeLineup, 'home');
+
+        const battingAway = g.battingSide === 'AWAY';
+        BB.renderBatterFoot(document.getElementById('awayFoot'),
+            battingAway ? state.currentBatter : state.nextBatter, '今日成績', 'away',
+            battingAway ? '目前打者' : '下個打者');
+        BB.renderBatterFoot(document.getElementById('homeFoot'),
+            battingAway ? state.nextBatter : state.currentBatter, '今日成績', 'home',
+            battingAway ? '下個打者' : '目前打者');
+
+        document.getElementById('defenseTeam').textContent = state.defenseTeamName;
+        BB.renderField(document.getElementById('field'), state.defense);
+
+        BB.renderScoreboard(document.getElementById('scoreboard'), state);
+        BB.renderFeed(document.getElementById('feed'), state.events);
+    }
+
+    BB.initPlayerLog(GAME_ID);
+    BB.poll(GAME_ID, render, 10000);   // 檢視模式：每 10 秒自動更新
+</script>
+</body>
+</html>
