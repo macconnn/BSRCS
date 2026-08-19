@@ -21,7 +21,7 @@ server:
       persistent: false
 
 app:
-  version: v1.0.1
+  version: v1.1.0             # 目前部署的版本號，只顯示在登入頁角落
   pitch-detail-enabled: false   # 是否開放記錄球種／球速；false 時畫面不顯示，一律用「直球」／100 km/h
   otp:
     length: 6

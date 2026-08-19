@@ -13,4 +13,9 @@ ENV TZ=Asia/Taipei
 ENV SPRING_PROFILES_ACTIVE=prod
 COPY --from=build /workspace/target/baseball-score.jar /app/app.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-XX:MaxRAMPercentage=75","-jar","/app/app.jar"]
+ENTRYPOINT ["java", \
+    "-XX:MaxRAMPercentage=50", \
+    "-XX:MaxMetaspaceSize=160m", \
+    "-XX:+UseSerialGC", \
+    "-XX:+ExitOnOutOfMemoryError", \
+    "-jar","/app/app.jar"]
