@@ -338,9 +338,10 @@ const BB = (() => {
             return;
         }
 
-        const posOptions = ['<option value="">（沿用原守備位置）</option>']
-            .concat(POSITIONS.map(p => `<option value="${p}">${p}</option>`)).join('');
-
+        // 2024 需求：換人時守備位置一律鎖死沿用「被換下」球員當下在場上守的位置，不開放挑選，
+        // 也完全不會用「換上」球員自己在球隊管理登記的守備位置去決定——他只是暫時代守而已。
+        // 這個欄位純粹是給記錄員看的提示文字，實際送出換人請求時後端會自己依被換下球員的位置鎖定，
+        // 前端不會、也不需要把守備位置傳給後端。
         const mask = document.createElement('div');
         mask.className = 'modal-mask';
         mask.id = 'subModalMask';
@@ -361,9 +362,10 @@ const BB = (() => {
                             ${bench.map(p => `<option value="${p.id}">${esc(p.name)}${p.jerseyNumber ? '（#' + esc(p.jerseyNumber) + '）' : ''}</option>`).join('')}
                         </select>
                     </label>
-                    <label><span class="field-label">守備位置</span>
-                        <select class="input" id="subPos">${posOptions}</select>
+                    <label><span class="field-label">守備位置（自動沿用被換下球員的位置，不可更改）</span>
+                        <input class="input" id="subPos" type="text" readonly disabled>
                     </label>
+                    <p style="font-size:12px;color:var(--muted);margin:0;">換上的球員只是暫時代守這個位置，不會更動他在球隊管理裡登記的守備位置。</p>
                     <button class="btn btn-primary btn-block" id="subConfirm">確認換人</button>
                 </div>
             </div>`;
@@ -372,12 +374,35 @@ const BB = (() => {
         document.addEventListener('keydown', subEscClose);
         document.body.appendChild(mask);
 
+        const subOutSel = document.getElementById('subOut');
+        const subPosField = document.getElementById('subPos');
+
+        function syncSubPos() {
+            const outId = parseInt(subOutSel.value, 10);
+            const outPlayer = onFieldList.find(p => p.lineupId === outId);
+            subPosField.value = outPlayer ? outPlayer.position : '';
+        }
+        subOutSel.addEventListener('change', syncSubPos);
+        syncSubPos(); // 初始化：預設帶出目前選取的被換下球員之守備位置
+
         document.getElementById('subConfirm').addEventListener('click', async () => {
-            const outLineupId = parseInt(document.getElementById('subOut').value, 10);
+            const outLineupId = parseInt(subOutSel.value, 10);
             const inPlayerId = parseInt(document.getElementById('subIn').value, 10);
-            const position = document.getElementById('subPos').value || null;
+            const lockedPosition = subPosField.value; // 僅供前端提前防呆用，不會送給後端
+
+            // 前端提前防呆：確認這個守備位置沒有被場上其他人（被換下的人除外）佔用，避免重複守備。
+            // 真正把關的判斷還是在後端（依被換下球員的位置鎖定 + 重複守備檢查），這裡只是提早給提示。
+            const duplicated = onFieldList.some(p => p.lineupId !== outLineupId
+                && lockedPosition && p.position === lockedPosition);
+            if (duplicated) {
+                toast(`守備位置「${lockedPosition}」已經有球員在守備，不可重複`, true);
+                return;
+            }
+
             try {
-                const data = await post(`/api/games/${gameId}/substitutions`, { side, outLineupId, inPlayerId, position });
+                // 注意：故意不傳 position 給後端。守備位置一律由後端依「被換下球員」當下的位置鎖定，
+                // 不會使用「換上球員」自己在球隊管理登記的守備位置。
+                const data = await post(`/api/games/${gameId}/substitutions`, { side, outLineupId, inPlayerId });
                 closeSubstituteModal();
                 toast('已完成換人');
                 if (refresh) refresh(data);

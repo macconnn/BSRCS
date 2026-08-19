@@ -140,9 +140,16 @@ public class GameService {
         return out;
     }
 
-    /** 換人：用板凳球員替補場上某位打線球員（沿用同一棒次，守備位置可另外指定） */
+    /**
+     * 換人：用板凳球員替補場上某位打線球員，沿用同一棒次。
+     * 守備位置規則（2024 需求）：一律鎖死沿用「被換下球員（outLineupId）」當下在場上守的位置，
+     * 例如場上 #13 守中外野手，換上 #43（他在球隊管理登記的守備位置是左外野手），
+     * #43 上場後這場比賽的守備位置一樣是「中外野手」——只是暫時代守，
+     * 不會去讀取、也完全不會更動 #43 在球隊管理（Player.defaultPosition）裡的守備位置資料。
+     * 因此這裡刻意不接受呼叫端傳入的守備位置參數，避免任何管道用換上球員自己的守備位置覆蓋掉這個規則。
+     */
     @Transactional
-    public GameLineup substitute(Long gameId, TeamSide side, Long outLineupId, Long inPlayerId, String position) {
+    public GameLineup substitute(Long gameId, TeamSide side, Long outLineupId, Long inPlayerId) {
         Game game = gameRepo.findById(gameId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "找不到比賽"));
         if (game.getStatus() == GameStatus.FINISHED) {
@@ -170,14 +177,20 @@ public class GameService {
                 .stream().anyMatch(l -> l.getPlayer().getId().equals(inPlayerId));
         if (alreadyOnField) throw new ApiException(inPlayer.getName() + " 已經在場上，無法重複換入");
 
+        // 守備位置＝被換下球員（out）當下在場上守的位置，不是換上球員（inPlayer）在球隊管理裡的守備位置。
+        String lockedPosition = out.getPosition();
+
+        // 防呆：確認這個守備位置目前沒有被場上其他仍在場上的球員佔用（被換下的人本身除外），
+        // 如果重複就阻擋這次換人。
+        assertPositionNotDuplicated(gameId, side, lockedPosition, out.getId());
+
         out.setActive(false);
         lineupRepo.save(out);
 
-        String pos = (position == null || position.isBlank()) ? out.getPosition() : position.trim();
         GameLineup in = lineupRepo.save(GameLineup.builder()
                 .game(game).team(team).player(inPlayer).teamSide(side)
                 .battingOrder(out.getBattingOrder())
-                .position(pos)
+                .position(lockedPosition)
                 .starter(false).active(true)
                 .build());
 
@@ -190,7 +203,8 @@ public class GameService {
                 .eventType("SUBSTITUTION")
                 .playerName(inPlayer.getName())
                 .description(out.getPlayer().getName() + " → " + inPlayer.getName()
-                        + "（第 " + out.getBattingOrder() + " 棒" + (pos == null || pos.isBlank() ? "" : "　" + pos) + "）")
+                        + "（第 " + out.getBattingOrder() + " 棒"
+                        + (lockedPosition == null || lockedPosition.isBlank() ? "" : "　" + lockedPosition) + "）")
                 .colorTag("blue")
                 .actionSeq(game.getActionSeq())
                 .build());
@@ -223,6 +237,11 @@ public class GameService {
         String labelA = (posA == null || posA.isBlank()) ? "-" : posA;
         String labelB = (posB == null || posB.isBlank()) ? "-" : posB;
 
+        // 防呆：交換後 a 會變成 posB、b 會變成 posA，確認這兩個位置沒有被場上其他球員（a、b 本身除外）佔用，
+        // 如果重複就阻擋這次互換。
+        assertPositionNotDuplicated(gameId, side, posB, a.getId(), b.getId());
+        assertPositionNotDuplicated(gameId, side, posA, a.getId(), b.getId());
+
         a.setPosition(posB);
         b.setPosition(posA);
         lineupRepo.save(a);
@@ -241,6 +260,23 @@ public class GameService {
                 .colorTag("blue")
                 .actionSeq(game.getActionSeq())
                 .build());
+    }
+
+    /**
+     * 防呆檢查：確認某個守備位置目前沒有被「場上其他仍在場上的球員」佔用，避免同一守備位置重複站人。
+     * excludeLineupIds：檢查時要排除的打線項目 id（例如換人時排除被換下的人、互換守備位置時排除當事的兩人）。
+     * position 為 null 或空字串時（例如尚未指定守備位置）不檢查。
+     */
+    private void assertPositionNotDuplicated(Long gameId, TeamSide side, String position, Long... excludeLineupIds) {
+        if (position == null || position.isBlank()) return;
+        java.util.Set<Long> excludes = java.util.Arrays.stream(excludeLineupIds).collect(java.util.stream.Collectors.toSet());
+        boolean duplicated = lineupRepo
+                .findByGameIdAndTeamSideAndActiveTrueOrderByBattingOrderAsc(gameId, side)
+                .stream()
+                .anyMatch(l -> !excludes.contains(l.getId()) && position.equals(l.getPosition()));
+        if (duplicated) {
+            throw new ApiException("守備位置「" + position + "」已經有球員在守備，不可重複");
+        }
     }
 
     /** 依目前打線中「守備位置＝投手」的球員，同步 game.away/homePitcherLineupId 指標 */

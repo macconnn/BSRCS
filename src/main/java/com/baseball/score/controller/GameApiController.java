@@ -105,7 +105,7 @@ public class GameApiController {
                                                         @Valid @RequestBody SubstitutionRequest req,
                                                         HttpServletRequest request) {
         gameService.assertCanEditGame(id, currentUser(request).getUserId());
-        gameService.substitute(id, req.getSide(), req.getOutLineupId(), req.getInPlayerId(), req.getPosition());
+        gameService.substitute(id, req.getSide(), req.getOutLineupId(), req.getInPlayerId());
         return ApiResponse.ok("已完成換人", queryService.gameState(id, true));
     }
 
