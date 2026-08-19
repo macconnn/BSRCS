@@ -69,8 +69,9 @@
                 <span class="base first" data-base-first></span>
                 <span class="base home"></span>
             </div>
-            <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;">
+            <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
                 <button class="btn btn-sm" id="stealBtn">🏃 盜壘</button>
+                <button class="btn btn-sm" id="errorAdvanceBtn">⚠️ 失誤推進</button>
                 <button class="btn btn-sm" id="baseEditBtn">✏️ 編輯壘包</button>
             </div>
         </div>
@@ -250,7 +251,7 @@
 
         // 比賽結束後停用所有記錄按鈕
         const finished = g.status === 'FINISHED';
-        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"],#subBtn,#posSwapBtn,#stealBtn,#baseEditBtn,#scoreEditBtn')
+        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"],#subBtn,#posSwapBtn,#stealBtn,#errorAdvanceBtn,#baseEditBtn,#scoreEditBtn')
             .forEach(el => el.disabled = finished);
     }
 
@@ -283,6 +284,11 @@
     document.getElementById('stealBtn').addEventListener('click', () => {
         if (!latest) return;
         BB.openStealModal(GAME_ID, latest.game.bases, refresh);
+    });
+
+    document.getElementById('errorAdvanceBtn').addEventListener('click', () => {
+        if (!latest) return;
+        BB.openErrorAdvanceModal(GAME_ID, latest.game.bases, refresh);
     });
 
     document.getElementById('baseEditBtn').addEventListener('click', () => {

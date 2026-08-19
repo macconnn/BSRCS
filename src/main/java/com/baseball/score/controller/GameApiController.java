@@ -131,6 +131,17 @@ public class GameApiController {
         return ApiResponse.ok("已記錄盜壘", queryService.gameState(id, true));
     }
 
+    /** 加碼失誤推進：安打／出局結果之後，因守備失誤造成的額外壘包推進（不算安打、不算打點，但算一次球隊失誤） */
+    @RequireEditor
+    @PostMapping("/{id}/error-advance")
+    public ApiResponse<Map<String, Object>> errorAdvance(@PathVariable Long id,
+                                                          @Valid @RequestBody ErrorAdvanceRequest req,
+                                                          HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.recordErrorAdvance(id, req.getFromBase(), req.getToBase());
+        return ApiResponse.ok("已記錄失誤推進", queryService.gameState(id, true));
+    }
+
     /** 手動編輯壘包狀態：處理現有規則涵蓋不到的特殊狀況 */
     @RequireEditor
     @PostMapping("/{id}/bases")

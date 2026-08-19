@@ -251,6 +251,62 @@ public class ScoringService {
     }
 
     /**
+     * 加碼失誤推進：安打／出局的打席結果已經照正常規則推進壘包之後，
+     * 因為守備失誤讓某位跑者又多推進了一個以上壘包（例如二壘安打，外野傳球失誤讓跑者從二壘多跑上三壘；
+     * 或一壘安打，傳球失誤讓打者從一壘多跑上二壘）。
+     * 只會多算一次球隊失誤、視情況加分；不計安打、不計打者打點（因守備失誤多跑回來的分不算打點，
+     * 這點跟安打本身的打點是分開計算的，安打的打點已經在 applyResult() 那次就算完了）。
+     */
+    @Transactional
+    public void recordErrorAdvance(Long gameId, Integer fromBase, Integer toBase) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        if (fromBase == null || fromBase < 1 || fromBase > 3) {
+            throw new ApiException("出發壘包錯誤");
+        }
+        if (toBase == null || toBase <= fromBase || toBase > 4) {
+            throw new ApiException("目標壘包錯誤");
+        }
+        snapshot(game, "ERROR_ADVANCE");
+
+        Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        int idx = fromBase - 1;
+        Long runnerId = bases[idx];
+        if (runnerId == null) {
+            throw new ApiException(baseLabel(fromBase) + " 目前沒有跑者，無法記錄失誤推進");
+        }
+        if (toBase <= 3 && bases[toBase - 1] != null) {
+            throw new ApiException(baseLabel(toBase) + " 已經有其他跑者，無法推進上去");
+        }
+
+        GameLineup runner = lineupRepo.findById(runnerId)
+                .orElseThrow(() -> new ApiException("找不到跑者資料"));
+        TeamSide batting = battingSide(game);
+        String runnerName = runner.getPlayer().getName();
+
+        bases[idx] = null;
+        int runs = 0;
+        if (toBase == 4) {
+            runs = 1;
+        } else {
+            bases[toBase - 1] = runnerId;
+        }
+
+        addError(game, fieldingSide(game));
+        if (runs > 0) addRuns(game, batting, runs);
+
+        game.setRunnerFirst(bases[0]);
+        game.setRunnerSecond(bases[1]);
+        game.setRunnerThird(bases[2]);
+
+        String desc = runnerName + " 因守備失誤，從" + baseLabel(fromBase) + "多推進到"
+                + (toBase == 4 ? "本壘，得 1 分（不計打點）" : baseLabel(toBase));
+        addEvent(game, "ERROR_ADVANCE", runnerName, desc, "red");
+
+        touch(game);
+    }
+
+    /**
      * 手動編輯壘包：用於不可預期的特殊狀況（現有規則無法涵蓋時），
      * 讓記錄員直接指定三個壘包各是哪位球員（必須是目前進攻方、仍在場上的球員），null 代表無人。
      * 這個動作會整組覆蓋壘包狀態，不影響出局數、球數、比分、安打／失誤數。

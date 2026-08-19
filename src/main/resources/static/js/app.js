@@ -595,6 +595,86 @@ const BB = (() => {
         document.removeEventListener('keydown', stealEscClose);
     }
 
+    /* ---------------------------------------------------------- 加碼失誤推進（安打／出局結果之後的延伸失誤） */
+
+    /**
+     * 開啟加碼失誤推進面板：從目前壘上的跑者選一位，選要多推進到哪個壘包。
+     * 用於安打／出局已經照正常規則推進完之後，因為守備失誤又多跑出來的壘包。
+     * 只會多算一次球隊失誤、視情況加分，不算安打也不算打點。
+     * bases：state.game.bases。refresh：完成後用來刷新畫面的 callback。
+     */
+    function openErrorAdvanceModal(gameId, bases, refresh) {
+        closeErrorAdvanceModal();
+
+        const occupied = [1, 2, 3].filter(b => bases[BASE_KEY[b]]);
+        if (!occupied.length) {
+            toast('目前壘上沒有跑者，無法記錄失誤推進', true);
+            return;
+        }
+
+        const fromOptions = occupied.map(b => {
+            const r = bases[BASE_KEY[b]];
+            return `<option value="${b}">${BASE_LABEL[b]}　${esc(r.name)}（#${esc(r.number)}）</option>`;
+        }).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'errorAdvanceModalMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="加碼失誤推進" style="max-width:420px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">加碼失誤推進</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <p style="font-size:12px;color:var(--muted);margin:0;">用於安打／出局之後，因為守備失誤讓跑者又多推進一個以上壘包的情況（例如二壘安打接傳球失誤，跑者從二壘多跑上三壘）。會計入一次球隊失誤，但不算安打、不算打點。</p>
+                    <label><span class="field-label">哪位跑者</span>
+                        <select class="input" id="errAdvFrom">${fromOptions}</select>
+                    </label>
+                    <label><span class="field-label">多推進到哪個壘包</span>
+                        <select class="input" id="errAdvTo"></select>
+                    </label>
+                    <button class="btn btn-primary btn-block" id="errAdvConfirm">確認</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeErrorAdvanceModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeErrorAdvanceModal);
+        document.addEventListener('keydown', errorAdvanceEscClose);
+        document.body.appendChild(mask);
+
+        const fromSel = document.getElementById('errAdvFrom');
+        const toSel = document.getElementById('errAdvTo');
+
+        function syncToOptions() {
+            const from = parseInt(fromSel.value, 10);
+            const opts = [];
+            for (let b = from + 1; b <= 4; b++) opts.push(`<option value="${b}">${BASE_LABEL[b]}</option>`);
+            toSel.innerHTML = opts.join('');
+        }
+        fromSel.addEventListener('change', syncToOptions);
+        syncToOptions();
+
+        document.getElementById('errAdvConfirm').addEventListener('click', async () => {
+            const fromBase = parseInt(fromSel.value, 10);
+            const toBase = parseInt(toSel.value, 10);
+            try {
+                const data = await post(`/api/games/${gameId}/error-advance`, { fromBase, toBase });
+                closeErrorAdvanceModal();
+                toast('已記錄失誤推進');
+                if (refresh) refresh(data);
+            } catch (e) {
+                toast(e.message, true);
+            }
+        });
+    }
+
+    function errorAdvanceEscClose(e) { if (e.key === 'Escape') closeErrorAdvanceModal(); }
+
+    function closeErrorAdvanceModal() {
+        document.querySelectorAll('#errorAdvanceModalMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', errorAdvanceEscClose);
+    }
+
     /* ---------------------------------------------------------- 編輯壘包（不可預期狀況下的手動控制） */
 
     /**
@@ -817,6 +897,7 @@ const BB = (() => {
         openSubstituteModal, closeSubstituteModal,
         openPositionSwapModal, closePositionSwapModal,
         openStealModal, closeStealModal,
+        openErrorAdvanceModal, closeErrorAdvanceModal,
         openBaseEditModal, closeBaseEditModal,
         openScoreEditModal, closeScoreEditModal
     };
