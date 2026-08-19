@@ -5,7 +5,7 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 10
+      maximum-pool-size: 5
   jpa:
     hibernate:
       ddl-auto: update           # 首次啟動自動建表；正式環境可改 validate + db/schema_postgres.sql
