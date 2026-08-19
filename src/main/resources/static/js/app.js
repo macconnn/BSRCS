@@ -106,7 +106,7 @@ const BB = (() => {
             if (!el) return;
             const runner = bases[k]; // null 或 { lineupId, name, number }
             el.classList.toggle('on', !!runner);
-            el.title = runner ? `${runner.name}（#${runner.number}）` : '';
+            el.title = runner ? `#${runner.number} ${runner.name}` : '';
         });
     }
 
@@ -117,8 +117,7 @@ const BB = (() => {
         tbody.innerHTML = list.map(p => `
             <tr class="${p.current ? 'current' + (side === 'home' ? ' home-row' : '') : ''}">
                 <td class="order">${p.order}</td>
-                <td>${esc(p.number)}</td>
-                <td><span class="clickable-name" data-player-log="${p.lineupId}">${esc(p.name)}</span></td>
+                <td><span class="clickable-name" data-player-log="${p.lineupId}">#${esc(p.number)} ${esc(p.name)}</span></td>
                 <td>${esc(p.position)}</td>
                 <td class="avg">${esc(p.avg)}</td>
             </tr>`).join('');
@@ -131,7 +130,7 @@ const BB = (() => {
         tbody.innerHTML = list.map(p => `
             <tr class="${p.current ? 'current' + (side === 'home' ? ' home-row' : '') : ''}">
                 <td class="order">${p.order}</td>
-                <td><span class="clickable-name" data-player-log="${p.lineupId}">${esc(p.name)}</span></td>
+                <td><span class="clickable-name" data-player-log="${p.lineupId}">#${esc(p.number)} ${esc(p.name)}</span></td>
             </tr>`).join('');
     }
 
@@ -143,7 +142,7 @@ const BB = (() => {
                 <span class="chip ${side === 'home' ? 'home' : ''}">${batter.order}</span>
                 <span>
                     ${caption ? `<div class="pos">${esc(caption)}</div>` : ''}
-                    <span class="nm">${esc(batter.name)}（#${esc(batter.number)}）</span>
+                    <span class="nm">#${esc(batter.number)} ${esc(batter.name)}</span>
                     <span class="pos">${esc(batter.position)}</span>
                 </span>
             </div>
@@ -284,7 +283,7 @@ const BB = (() => {
             <div class="modal-card" role="dialog" aria-modal="true" aria-label="球員本場表現">
                 <div class="modal-head">
                     <div>
-                        <div style="font-size:17px;font-weight:700;">${esc(p.name)}（#${esc(p.number)}）</div>
+                        <div style="font-size:17px;font-weight:700;">#${esc(p.number)} ${esc(p.name)}</div>
                         <div style="font-size:12px;color:var(--muted);margin-top:2px;">
                             ${esc(data.teamName)}　第 ${p.order} 棒　${esc(p.position)}　賽前打擊率 ${esc(p.avg)}
                         </div>
@@ -357,12 +356,12 @@ const BB = (() => {
                 <div class="modal-body" style="display:grid;gap:12px;">
                     <label><span class="field-label">被換下（目前在場上）</span>
                         <select class="input" id="subOut">
-                            ${onFieldList.map(p => `<option value="${p.lineupId}">${esc(p.order)}棒　${esc(p.name)}（#${esc(p.number)}）　${esc(p.position)}</option>`).join('')}
+                            ${onFieldList.map(p => `<option value="${p.lineupId}">${esc(p.order)}棒　#${esc(p.number)} ${esc(p.name)}　${esc(p.position)}</option>`).join('')}
                         </select>
                     </label>
                     <label><span class="field-label">換上（該隊可用球員）</span>
                         <select class="input" id="subIn">
-                            ${bench.map(p => `<option value="${p.id}">${esc(p.name)}${p.jerseyNumber ? '（#' + esc(p.jerseyNumber) + '）' : ''}</option>`).join('')}
+                            ${bench.map(p => `<option value="${p.id}">${p.jerseyNumber ? '#' + esc(p.jerseyNumber) + ' ' : ''}${esc(p.name)}</option>`).join('')}
                         </select>
                     </label>
                     <label><span class="field-label">守備位置（自動沿用被換下球員的位置，不可更改）</span>
@@ -438,7 +437,7 @@ const BB = (() => {
         }
 
         const optionsHtml = onFieldList.map(p =>
-            `<option value="${p.lineupId}">${esc(p.order)}棒　${esc(p.name)}（#${esc(p.number)}）　${esc(p.position)}</option>`).join('');
+            `<option value="${p.lineupId}">${esc(p.order)}棒　#${esc(p.number)} ${esc(p.name)}　${esc(p.position)}</option>`).join('');
 
         const mask = document.createElement('div');
         mask.className = 'modal-mask';
@@ -514,7 +513,7 @@ const BB = (() => {
 
         const fromOptions = occupied.map(b => {
             const r = bases[BASE_KEY[b]];
-            return `<option value="${b}">${BASE_LABEL[b]}　${esc(r.name)}（#${esc(r.number)}）</option>`;
+            return `<option value="${b}">${BASE_LABEL[b]}　#${esc(r.number)} ${esc(r.name)}</option>`;
         }).join('');
 
         const mask = document.createElement('div');
@@ -614,7 +613,7 @@ const BB = (() => {
 
         const fromOptions = occupied.map(b => {
             const r = bases[BASE_KEY[b]];
-            return `<option value="${b}">${BASE_LABEL[b]}　${esc(r.name)}（#${esc(r.number)}）</option>`;
+            return `<option value="${b}">${BASE_LABEL[b]}　#${esc(r.number)} ${esc(r.name)}</option>`;
         }).join('');
 
         const mask = document.createElement('div');
@@ -692,7 +691,7 @@ const BB = (() => {
         function optionsFor(currentLineupId) {
             let html = `<option value="">（無人）</option>`;
             html += battingList.map(p => `<option value="${p.lineupId}" ${p.lineupId === currentLineupId ? 'selected' : ''}>
-                ${esc(p.order)}棒　${esc(p.name)}（#${esc(p.number)}）</option>`).join('');
+                ${esc(p.order)}棒　#${esc(p.number)} ${esc(p.name)}</option>`).join('');
             return html;
         }
 
