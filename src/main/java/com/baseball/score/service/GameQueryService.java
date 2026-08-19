@@ -64,10 +64,13 @@ public class GameQueryService {
         g.put("strikes", game.getStrikes());
         g.put("countLabel", game.getBalls() + " - " + game.getStrikes());
         g.put("battingSide", batting.name());
-        g.put("bases", Map.of(
-                "first", game.getRunnerFirst() != null,
-                "second", game.getRunnerSecond() != null,
-                "third", game.getRunnerThird() != null));
+        // 每個壘包：無人時是 null，有人時是 { lineupId, name, number }，供前端渲染 + 盜壘／編輯壘包功能挑選跑者用。
+        // （renderBases 用 !!bases[k] 判斷是否有人上壘，null 為 falsy、物件為 truthy，行為跟原本的布林值相容。）
+        Map<String, Object> basesMap = new LinkedHashMap<>();
+        basesMap.put("first", baseRunner(game.getRunnerFirst()));
+        basesMap.put("second", baseRunner(game.getRunnerSecond()));
+        basesMap.put("third", baseRunner(game.getRunnerThird()));
+        g.put("bases", basesMap);
         root.put("game", g);
 
         root.put("away", teamBlock(game.getAwayTeam(), game.getAwayScore(), game.getAwayHits(), game.getAwayErrors()));
@@ -177,6 +180,18 @@ public class GameQueryService {
         m.put("avg", statsService.avgText(statsService.careerStats(l.getPlayer().getId()).avg()));
         m.put("today", l.getAtBats() + "-" + l.getHits());
         return m;
+    }
+
+    /** 壘上跑者的簡要資訊，供盜壘／編輯壘包功能挑選跑者用；沒有人在壘包上時回傳 null */
+    private Map<String, Object> baseRunner(Long lineupId) {
+        if (lineupId == null) return null;
+        return lineupRepo.findById(lineupId).<Map<String, Object>>map(l -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("lineupId", l.getId());
+            m.put("name", l.getPlayer().getName());
+            m.put("number", orDash(l.getPlayer().getJerseyNumber()));
+            return m;
+        }).orElse(null);
     }
 
     /** 守備陣型：九宮格位置 → 球員 */

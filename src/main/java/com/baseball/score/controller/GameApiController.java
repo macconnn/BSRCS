@@ -105,7 +105,7 @@ public class GameApiController {
                                                         @Valid @RequestBody SubstitutionRequest req,
                                                         HttpServletRequest request) {
         gameService.assertCanEditGame(id, currentUser(request).getUserId());
-        gameService.substitute(id, req.getSide(), req.getOutLineupId(), req.getInPlayerId(), req.getPosition());
+        gameService.substitute(id, req.getSide(), req.getOutLineupId(), req.getInPlayerId());
         return ApiResponse.ok("已完成換人", queryService.gameState(id, true));
     }
 
@@ -118,6 +118,50 @@ public class GameApiController {
         gameService.assertCanEditGame(id, currentUser(request).getUserId());
         gameService.swapPosition(id, req.getSide(), req.getLineupIdA(), req.getLineupIdB());
         return ApiResponse.ok("已互換守備位置", queryService.gameState(id, true));
+    }
+
+    /** 盜壘：獨立於打席結果之外的跑者事件，不影響打者打數、不結束打席 */
+    @RequireEditor
+    @PostMapping("/{id}/steal")
+    public ApiResponse<Map<String, Object>> steal(@PathVariable Long id,
+                                                   @Valid @RequestBody StealRequest req,
+                                                   HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.recordSteal(id, req.getFromBase(), req.getToBase(), req.getOutcome(), req.isError());
+        return ApiResponse.ok("已記錄盜壘", queryService.gameState(id, true));
+    }
+
+    /** 加碼失誤推進：安打／出局結果之後，因守備失誤造成的額外壘包推進（不算安打、不算打點，但算一次球隊失誤） */
+    @RequireEditor
+    @PostMapping("/{id}/error-advance")
+    public ApiResponse<Map<String, Object>> errorAdvance(@PathVariable Long id,
+                                                          @Valid @RequestBody ErrorAdvanceRequest req,
+                                                          HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.recordErrorAdvance(id, req.getFromBase(), req.getToBase());
+        return ApiResponse.ok("已記錄失誤推進", queryService.gameState(id, true));
+    }
+
+    /** 手動編輯壘包狀態：處理現有規則涵蓋不到的特殊狀況 */
+    @RequireEditor
+    @PostMapping("/{id}/bases")
+    public ApiResponse<Map<String, Object>> editBases(@PathVariable Long id,
+                                                       @Valid @RequestBody BaseEditRequest req,
+                                                       HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.editBases(id, req.getRunnerFirst(), req.getRunnerSecond(), req.getRunnerThird());
+        return ApiResponse.ok("已更新壘包狀態", queryService.gameState(id, true));
+    }
+
+    /** 手動編輯某一局的得分：修正手誤，並自動同步重算該隊總分，確保總分與每局分數對得起來 */
+    @RequireEditor
+    @PostMapping("/{id}/score")
+    public ApiResponse<Map<String, Object>> editScore(@PathVariable Long id,
+                                                       @Valid @RequestBody ScoreEditRequest req,
+                                                       HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.editInningScore(id, req.getSide(), req.getInning(), req.getRuns());
+        return ApiResponse.ok("已更新比分", queryService.gameState(id, true));
     }
 
     @RequireEditor

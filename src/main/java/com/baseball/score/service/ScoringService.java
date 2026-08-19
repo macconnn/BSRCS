@@ -173,6 +173,208 @@ public class ScoringService {
         touch(game);
     }
 
+    /**
+     * 盜壘：獨立於打席結果之外的跑者事件（發生在打席進行中，不影響打者的打數／不結束打席）。
+     * outcome=SAFE：跑者從 fromBase 移動到 toBase（toBase=4 代表跑回本壘得分）；
+     *   error=true 代表這次推進中有一段是因為守備失誤多跑出來的，會計入球隊失誤數，
+     *   但不論推進幾個壘包，都只算球員一次盜壘成功。
+     * outcome=CAUGHT：跑者出局，+1 出局數，toBase／error 會被忽略。
+     */
+    @Transactional
+    public void recordSteal(Long gameId, Integer fromBase, Integer toBase, StealOutcome outcome, boolean error) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        if (fromBase == null || fromBase < 1 || fromBase > 3) {
+            throw new ApiException("出發壘包錯誤");
+        }
+        snapshot(game, "STEAL_" + outcome);
+
+        Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        int idx = fromBase - 1;
+        Long runnerId = bases[idx];
+        if (runnerId == null) {
+            throw new ApiException(baseLabel(fromBase) + " 目前沒有跑者，無法盜壘");
+        }
+        GameLineup runner = lineupRepo.findById(runnerId)
+                .orElseThrow(() -> new ApiException("找不到跑者資料"));
+        TeamSide batting = battingSide(game);
+        String runnerName = runner.getPlayer().getName();
+
+        if (outcome == StealOutcome.CAUGHT) {
+            bases[idx] = null;
+            game.setOuts(game.getOuts() + 1);
+            runner.setCaughtStealing(runner.getCaughtStealing() + 1);
+            lineupRepo.save(runner);
+            addEvent(game, "STEAL", runnerName, runnerName + " 盜" + baseLabel(fromBase + 1) + "失敗，被阻殺出局", "red");
+        } else {
+            if (toBase == null || toBase <= fromBase || toBase > 4) {
+                throw new ApiException("目標壘包錯誤");
+            }
+            if (toBase <= 3 && bases[toBase - 1] != null) {
+                throw new ApiException(baseLabel(toBase) + " 已經有其他跑者，無法盜壘上去");
+            }
+
+            bases[idx] = null;
+            int runs = 0;
+            if (toBase == 4) {
+                runs = 1;
+            } else {
+                bases[toBase - 1] = runnerId;
+            }
+
+            runner.setStolenBases(runner.getStolenBases() + 1);
+            lineupRepo.save(runner);
+            if (error) addError(game, fieldingSide(game));
+            if (runs > 0) addRuns(game, batting, runs);
+
+            String desc = runnerName + " 從" + baseLabel(fromBase) + "盜上"
+                    + (toBase == 4 ? "本壘，得 1 分" : baseLabel(toBase))
+                    + (error ? "（含守備失誤）" : "");
+            addEvent(game, "STEAL", runnerName, desc, "blue");
+        }
+
+        game.setRunnerFirst(bases[0]);
+        game.setRunnerSecond(bases[1]);
+        game.setRunnerThird(bases[2]);
+
+        if (game.getOuts() >= 3) changeHalfInning(game);
+        touch(game);
+    }
+
+    private String baseLabel(int base) {
+        return switch (base) {
+            case 1 -> "一壘";
+            case 2 -> "二壘";
+            case 3 -> "三壘";
+            default -> "本壘";
+        };
+    }
+
+    /**
+     * 加碼失誤推進：安打／出局的打席結果已經照正常規則推進壘包之後，
+     * 因為守備失誤讓某位跑者又多推進了一個以上壘包（例如二壘安打，外野傳球失誤讓跑者從二壘多跑上三壘；
+     * 或一壘安打，傳球失誤讓打者從一壘多跑上二壘）。
+     * 只會多算一次球隊失誤、視情況加分；不計安打、不計打者打點（因守備失誤多跑回來的分不算打點，
+     * 這點跟安打本身的打點是分開計算的，安打的打點已經在 applyResult() 那次就算完了）。
+     */
+    @Transactional
+    public void recordErrorAdvance(Long gameId, Integer fromBase, Integer toBase) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        if (fromBase == null || fromBase < 1 || fromBase > 3) {
+            throw new ApiException("出發壘包錯誤");
+        }
+        if (toBase == null || toBase <= fromBase || toBase > 4) {
+            throw new ApiException("目標壘包錯誤");
+        }
+        snapshot(game, "ERROR_ADVANCE");
+
+        Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        int idx = fromBase - 1;
+        Long runnerId = bases[idx];
+        if (runnerId == null) {
+            throw new ApiException(baseLabel(fromBase) + " 目前沒有跑者，無法記錄失誤推進");
+        }
+        if (toBase <= 3 && bases[toBase - 1] != null) {
+            throw new ApiException(baseLabel(toBase) + " 已經有其他跑者，無法推進上去");
+        }
+
+        GameLineup runner = lineupRepo.findById(runnerId)
+                .orElseThrow(() -> new ApiException("找不到跑者資料"));
+        TeamSide batting = battingSide(game);
+        String runnerName = runner.getPlayer().getName();
+
+        bases[idx] = null;
+        int runs = 0;
+        if (toBase == 4) {
+            runs = 1;
+        } else {
+            bases[toBase - 1] = runnerId;
+        }
+
+        addError(game, fieldingSide(game));
+        if (runs > 0) addRuns(game, batting, runs);
+
+        game.setRunnerFirst(bases[0]);
+        game.setRunnerSecond(bases[1]);
+        game.setRunnerThird(bases[2]);
+
+        String desc = runnerName + " 因守備失誤，從" + baseLabel(fromBase) + "多推進到"
+                + (toBase == 4 ? "本壘，得 1 分（不計打點）" : baseLabel(toBase));
+        addEvent(game, "ERROR_ADVANCE", runnerName, desc, "red");
+
+        touch(game);
+    }
+
+    /**
+     * 手動編輯壘包：用於不可預期的特殊狀況（現有規則無法涵蓋時），
+     * 讓記錄員直接指定三個壘包各是哪位球員（必須是目前進攻方、仍在場上的球員），null 代表無人。
+     * 這個動作會整組覆蓋壘包狀態，不影響出局數、球數、比分、安打／失誤數。
+     */
+    @Transactional
+    public void editBases(Long gameId, Long firstId, Long secondId, Long thirdId) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        snapshot(game, "EDIT_BASES");
+
+        TeamSide batting = battingSide(game);
+        List<Long> seen = new java.util.ArrayList<>();
+        for (Long id : java.util.Arrays.asList(firstId, secondId, thirdId)) {
+            if (id == null) continue;
+            if (seen.contains(id)) {
+                throw new ApiException("同一位球員不能同時站在兩個壘包");
+            }
+            seen.add(id);
+            GameLineup l = lineupRepo.findById(id)
+                    .orElseThrow(() -> new ApiException("找不到球員資料 id=" + id));
+            if (!l.getGame().getId().equals(gameId)) throw new ApiException("這位球員不屬於本場比賽");
+            if (l.getTeamSide() != batting) throw new ApiException(l.getPlayer().getName() + " 不是目前進攻方的球員，無法設為跑者");
+            if (!Boolean.TRUE.equals(l.getActive())) throw new ApiException(l.getPlayer().getName() + " 目前不在場上，無法設為跑者");
+        }
+
+        game.setRunnerFirst(firstId);
+        game.setRunnerSecond(secondId);
+        game.setRunnerThird(thirdId);
+
+        addEvent(game, "SYSTEM", null, "手動調整壘包狀態", "gray");
+        touch(game);
+    }
+
+    /**
+     * 手動編輯「某一局」的得分：用來修正手誤造成的比分錯誤。
+     * 更新該局分數後，會直接把該隊的總分重新計算成「該隊每一局分數的加總」，
+     * 所以總分永遠跟每局分數對得起來，不會有兜不攏的情況。
+     */
+    @Transactional
+    public void editInningScore(Long gameId, TeamSide side, Integer inning, Integer runs) {
+        Game game = getGame(gameId);
+        assertLive(game);
+        if (inning == null || inning < 1) {
+            throw new ApiException("局數錯誤");
+        }
+        if (runs == null || runs < 0) {
+            throw new ApiException("分數必須是不小於 0 的整數");
+        }
+        snapshot(game, "EDIT_INNING_SCORE");
+
+        InningScore is = inningScore(game, side, inning);
+        is.setRuns(runs);
+        inningRepo.save(is);
+
+        // 重新計算該隊總分＝該隊每一局分數的加總，確保總分跟每局分數永遠一致。
+        int total = inningRepo.findByGameIdOrderByInningAsc(game.getId()).stream()
+                .filter(i -> i.getTeamSide() == side)
+                .mapToInt(InningScore::getRuns)
+                .sum();
+        if (side == TeamSide.AWAY) game.setAwayScore(total);
+        else game.setHomeScore(total);
+
+        String teamLabel = side == TeamSide.AWAY ? "客隊" : "主隊";
+        addEvent(game, "SYSTEM", null,
+                "手動調整" + teamLabel + "第 " + inning + " 局得分為 " + runs + " 分（總分同步更新為 " + total + " 分）", "gray");
+        touch(game);
+    }
+
     /** 上一打席 / 復原：還原到上一個快照 */
     @Transactional
     public void undo(Long gameId) {
@@ -427,7 +629,8 @@ public class ScoringService {
 
             List<Map<String, Object>> lineups = new ArrayList<>();
             for (GameLineup l : lineupRepo.findByGameIdOrderByTeamSideAscBattingOrderAsc(game.getId())) {
-                lineups.add(Map.of("id", l.getId(), "atBats", l.getAtBats(), "hits", l.getHits(), "rbi", l.getRbi()));
+                lineups.add(Map.of("id", l.getId(), "atBats", l.getAtBats(), "hits", l.getHits(), "rbi", l.getRbi(),
+                        "stolenBases", l.getStolenBases(), "caughtStealing", l.getCaughtStealing()));
             }
             state.put("lineups", lineups);
 
@@ -487,6 +690,8 @@ public class ScoringService {
                     l.setAtBats(asInt(m.get("atBats")));
                     l.setHits(asInt(m.get("hits")));
                     l.setRbi(asInt(m.get("rbi")));
+                    l.setStolenBases(asInt(m.get("stolenBases")));
+                    l.setCaughtStealing(asInt(m.get("caughtStealing")));
                     lineupRepo.save(l);
                 });
             }

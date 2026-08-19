@@ -47,4 +47,8 @@ public class GameLineup {
     @Column(name = "at_bats", nullable = false) @Builder.Default private Integer atBats = 0;
     @Column(nullable = false) @Builder.Default private Integer hits = 0;
     @Column(nullable = false) @Builder.Default private Integer rbi = 0;
+
+    /** 本場盜壘成功 / 被阻殺次數 */
+    @Column(name = "stolen_bases", nullable = false) @Builder.Default private Integer stolenBases = 0;
+    @Column(name = "caught_stealing", nullable = false) @Builder.Default private Integer caughtStealing = 0;
 }
