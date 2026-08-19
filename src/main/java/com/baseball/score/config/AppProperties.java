@@ -10,6 +10,14 @@ public class AppProperties {
 
     private boolean seed = false;
     private String defaultEditorEmail;
+    /** App 版本號，只顯示在登入頁角落，方便確認目前部署的是哪個版本 */
+    private String version = "v1.0.0";
+    /**
+     * 是否開放記錄「球種」與「球速」。
+     * true（預設）：球數紀錄卡片會顯示球種下拉選單、球速輸入框，記錄員可以自行選填。
+     * false：畫面上完全不顯示這兩個欄位，記錄一球時後端一律用預設值「直球」／100 km/h。
+     */
+    private boolean pitchDetailEnabled = true;
     private Otp otp = new Otp();
     private Auth auth = new Auth();
     private Mail mail = new Mail();

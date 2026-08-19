@@ -8,6 +8,11 @@ spring:
   jackson:
     default-property-inclusion: non_null
     time-zone: Asia/Taipei
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 365d
 
 server:
   port: 8080
@@ -16,6 +21,8 @@ server:
       persistent: false
 
 app:
+  version: v1.0.0
+  pitch-detail-enabled: false   # 是否開放記錄球種／球速；false 時畫面不顯示，一律用「直球」／100 km/h
   otp:
     length: 6
     ttl-minutes: 10          # 驗證碼有效時間

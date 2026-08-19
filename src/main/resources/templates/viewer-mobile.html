@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title th:text="|線上棒球比賽紀錄表（檢視模式）— ${gameName}|">線上棒球比賽紀錄表（檢視模式）</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" th:href="@{/css/app.css(v=${T(com.baseball.score.config.AssetVersion).VALUE})}">
 </head>
 <body>
 <div class="wrap-mobile">
@@ -92,6 +92,11 @@
         </div>
         <div class="card-body"><div class="feed" id="feed"></div></div>
     </section>
+
+    <!-- 版權標示 -->
+    <footer style="text-align:center;color:var(--muted);font-size:12px;padding:18px 0 8px;">
+        Copyright © 2026 SupremeEden. All rights reserved.
+    </footer>
 </div>
 
 <div class="m-footer">
@@ -99,7 +104,7 @@
     <div class="readonly-note">目前為檢視模式，僅顯示比賽紀錄</div>
 </div>
 
-<script src="/js/app.js"></script>
+<script th:src="@{/js/app.js(v=${T(com.baseball.score.config.AssetVersion).VALUE})}"></script>
 <script th:inline="javascript">
     const GAME_ID = [[${gameId}]];
 
