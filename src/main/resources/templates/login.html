@@ -4,15 +4,17 @@
     <meta charset="UTF-8">
     <title>線上棒球比賽紀錄表</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" th:href="@{/css/app.css(v=${T(com.baseball.score.config.AssetVersion).VALUE})}">
 </head>
 <body>
+<!-- 版本號：固定顯示在畫面角落，方便確認目前部署的是哪個版本 -->
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:var(--muted);opacity:.7;z-index:10;" th:text="${appVersion}"></div>
 <div class="login-shell">
 
     <!-- Step 0：選擇登入方式 -->
     <section id="step0">
         <div class="hero">
-            <div class="ball-lg">⚾</div>
+            <div class="ball-lg"><img th:src="@{/img/wenshan-logo.jpg(v=${T(com.baseball.score.config.AssetVersion).VALUE})}" alt="文山 Logo"></div>
             <h1>線上棒球比賽紀錄表</h1>
             <p>記錄每一場比賽的精彩時刻</p>
         </div>
@@ -107,9 +109,14 @@
             </div>
         </div>
     </section>
+
+    <!-- 版權標示 -->
+    <footer style="text-align:center;color:var(--muted);font-size:12px;padding:24px 0 4px;">
+        Copyright © 2026 SupremeEden. All rights reserved.
+    </footer>
 </div>
 
-<script src="/js/app.js"></script>
+<script th:src="@{/js/app.js(v=${T(com.baseball.score.config.AssetVersion).VALUE})}"></script>
 <script th:inline="javascript">
     const loggedIn = [[${loggedIn}]];
     if (loggedIn) location.href = '/games';

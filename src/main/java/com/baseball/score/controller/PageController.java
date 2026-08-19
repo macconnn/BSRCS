@@ -1,5 +1,6 @@
 package com.baseball.score.controller;
 
+import com.baseball.score.config.AppProperties;
 import com.baseball.score.config.AuthInterceptor;
 import com.baseball.score.config.CurrentUser;
 import com.baseball.score.entity.Game;
@@ -31,12 +32,14 @@ import java.util.Optional;
 public class PageController {
 
     private final GameRepository gameRepo;
+    private final AppProperties appProperties;
 
     @GetMapping("/")
     public String login(HttpServletRequest request, Model model) {
         CurrentUser user = currentUser(request);
         model.addAttribute("loggedIn", user.isLoggedIn());
         model.addAttribute("email", user.getEmail());
+        model.addAttribute("appVersion", appProperties.getVersion());
         return "login";
     }
 
@@ -79,6 +82,7 @@ public class PageController {
         model.addAttribute("loggedIn", user.isLoggedIn());
         model.addAttribute("device", device.name());
         model.addAttribute("displayName", user.getDisplayName());
+        model.addAttribute("pitchDetailEnabled", appProperties.isPitchDetailEnabled());
 
         if (device == DeviceType.MOBILE) {
             return canEdit ? "editor-mobile" : "viewer-mobile";

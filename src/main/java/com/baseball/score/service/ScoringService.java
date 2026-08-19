@@ -119,6 +119,11 @@ public class ScoringService {
         AtBat atBat = currentOrCreateAtBat(game);
         GameLineup batter = atBat.getBatterLineup();
 
+        // 球種／球速欄位可能因為「球種球速開關」被關閉而沒有顯示，前端就不會送這兩個值上來（null）；
+        // 這裡統一補上預設值「直球」／100 km/h，確保資料庫欄位不會是空的，跟關閉開關時畫面上講的行為一致。
+        String finalPitchType = (pitchType == null || pitchType.isBlank()) ? "直球" : pitchType;
+        Integer finalSpeedKmh = speedKmh == null ? 100 : speedKmh;
+
         switch (call) {
             case STRIKE -> game.setStrikes(game.getStrikes() + 1);
             case BALL -> game.setBalls(game.getBalls() + 1);
@@ -129,7 +134,7 @@ public class ScoringService {
                 .mapToInt(Pitch::getSeqNo).max().orElse(0) + 1;
         pitchRepo.save(Pitch.builder()
                 .game(game).atBat(atBat).seqNo(seq).call(call)
-                .pitchType(pitchType).speedKmh(speedKmh)
+                .pitchType(finalPitchType).speedKmh(finalSpeedKmh)
                 .ballsAfter(game.getBalls()).strikesAfter(game.getStrikes())
                 .actionSeq(game.getActionSeq())
                 .build());
