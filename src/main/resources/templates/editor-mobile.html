@@ -37,6 +37,7 @@
             <div class="m-score-mid">
                 <div>▾ <span data-f="inningLabel">1局上</span></div>
                 <div class="count"><span data-f="countLabel">0 - 0</span> | <span data-f="outs">0</span> OUT</div>
+                <button class="btn btn-sm" id="scoreEditBtn" style="margin-top:6px;">✏️ 編輯比分</button>
             </div>
             <div class="home" style="text-align:center;min-width:64px;">
                 <div class="tname" data-f="homeName">-</div>
@@ -58,6 +59,32 @@
                     <span class="base first" data-base-first></span>
                     <span class="base home"></span>
                 </div>
+            </div>
+        </div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;">
+            <button class="btn btn-sm" id="stealBtn">🏃 盜壘</button>
+            <button class="btn btn-sm" id="baseEditBtn">✏️ 編輯壘包</button>
+        </div>
+    </section>
+
+    <!-- 2024 需求：球數紀錄移到上方比分區塊下方，比較好紀錄 -->
+    <section class="card" style="margin-top:10px;">
+        <div class="card-title">球數紀錄</div>
+        <div class="card-body">
+            <div class="m-pitch-btns">
+                <button class="pitch-btn pb-strike" data-pitch="STRIKE">好球 (S)</button>
+                <button class="pitch-btn pb-ball" data-pitch="BALL">壞球 (B)</button>
+                <button class="pitch-btn pb-foul" data-pitch="FOUL">界外球</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+                <select class="input" data-pitch-type>
+                    <option value="直球">直球</option>
+                    <option value="曲球">曲球</option>
+                    <option value="滑球">滑球</option>
+                    <option value="變速球">變速球</option>
+                    <option value="伸卡球">伸卡球</option>
+                </select>
+                <input class="input" type="number" min="60" max="180" value="140" data-pitch-speed aria-label="球速">
             </div>
         </div>
     </section>
@@ -108,28 +135,6 @@
             </div>
         </section>
     </div>
-
-    <!-- 球數紀錄 -->
-    <section class="card" style="margin-top:10px;">
-        <div class="card-title">球數紀錄</div>
-        <div class="card-body">
-            <div class="m-pitch-btns">
-                <button class="pitch-btn pb-strike" data-pitch="STRIKE">好球 (S)</button>
-                <button class="pitch-btn pb-ball" data-pitch="BALL">壞球 (B)</button>
-                <button class="pitch-btn pb-foul" data-pitch="FOUL">界外球</button>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
-                <select class="input" data-pitch-type>
-                    <option value="直球">直球</option>
-                    <option value="曲球">曲球</option>
-                    <option value="滑球">滑球</option>
-                    <option value="變速球">變速球</option>
-                    <option value="伸卡球">伸卡球</option>
-                </select>
-                <input class="input" type="number" min="60" max="180" value="140" data-pitch-speed aria-label="球速">
-            </div>
-        </div>
-    </section>
 
     <!-- 投球紀錄 -->
     <section class="card" style="margin-top:10px;">
@@ -183,7 +188,7 @@
         BB.renderPitches(document.getElementById('pitchList'), state.pitches);
 
         const finished = g.status === 'FINISHED';
-        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"],#subBtn,#posSwapBtn')
+        document.querySelectorAll('[data-result],[data-pitch],[data-action="next"],#subBtn,#posSwapBtn,#stealBtn,#baseEditBtn,#scoreEditBtn')
             .forEach(el => el.disabled = finished);
     }
 
@@ -217,6 +222,24 @@
         if (!latest) return;
         const list = activeTab === 'away' ? latest.awayLineup : latest.homeLineup;
         BB.openPositionSwapModal(GAME_ID, activeTab.toUpperCase(), list, refresh);
+    });
+
+    // 盜壘／編輯壘包一律針對「目前進攻方」，跟畫面上選看哪一隊打線（activeTab）無關。
+    document.getElementById('stealBtn').addEventListener('click', () => {
+        if (!latest) return;
+        BB.openStealModal(GAME_ID, latest.game.bases, refresh);
+    });
+
+    document.getElementById('baseEditBtn').addEventListener('click', () => {
+        if (!latest) return;
+        const battingList = latest.game.battingSide === 'AWAY' ? latest.awayLineup : latest.homeLineup;
+        BB.openBaseEditModal(GAME_ID, latest.game.bases, battingList, refresh);
+    });
+
+    document.getElementById('scoreEditBtn').addEventListener('click', () => {
+        if (!latest) return;
+        BB.openScoreEditModal(GAME_ID, latest.away.name, latest.home.name,
+            latest.scoreboard.innings, refresh);
     });
 
     BB.initPlayerLog(GAME_ID);

@@ -103,7 +103,10 @@ const BB = (() => {
         const map = { first: '[data-base-first]', second: '[data-base-second]', third: '[data-base-third]' };
         Object.keys(map).forEach(k => {
             const el = root.querySelector(map[k]);
-            if (el) el.classList.toggle('on', !!bases[k]);
+            if (!el) return;
+            const runner = bases[k]; // null 或 { lineupId, name, number }
+            el.classList.toggle('on', !!runner);
+            el.title = runner ? `${runner.name}（#${runner.number}）` : '';
         });
     }
 
@@ -490,6 +493,278 @@ const BB = (() => {
         document.removeEventListener('keydown', posSwapEscClose);
     }
 
+    /* ---------------------------------------------------------- 盜壘（獨立於打席結果，不從壘包 UI 直接點擊） */
+
+    const BASE_LABEL = { 1: '一壘', 2: '二壘', 3: '三壘', 4: '本壘' };
+    const BASE_KEY = { 1: 'first', 2: 'second', 3: 'third' };
+
+    /**
+     * 開啟盜壘小面板：從目前壘包狀態選「從哪個壘包出發」→「盜上哪個壘包」→ 結果。
+     * bases：state.game.bases（{ first, second, third }，每個是 null 或 { lineupId, name, number }）。
+     * refresh：完成後用來刷新畫面的 callback，會收到最新的 game state。
+     */
+    function openStealModal(gameId, bases, refresh) {
+        closeStealModal();
+
+        const occupied = [1, 2, 3].filter(b => bases[BASE_KEY[b]]);
+        if (!occupied.length) {
+            toast('目前壘上沒有跑者，無法盜壘', true);
+            return;
+        }
+
+        const fromOptions = occupied.map(b => {
+            const r = bases[BASE_KEY[b]];
+            return `<option value="${b}">${BASE_LABEL[b]}　${esc(r.name)}（#${esc(r.number)}）</option>`;
+        }).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'stealModalMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="盜壘" style="max-width:420px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">盜壘</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <label><span class="field-label">從哪個壘包出發</span>
+                        <select class="input" id="stealFrom">${fromOptions}</select>
+                    </label>
+                    <label><span class="field-label">結果</span>
+                        <select class="input" id="stealOutcome">
+                            <option value="SAFE">成功</option>
+                            <option value="CAUGHT">被阻殺出局</option>
+                        </select>
+                    </label>
+                    <div id="stealToWrap">
+                        <label><span class="field-label">盜上哪個壘包</span>
+                            <select class="input" id="stealTo"></select>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                            <input type="checkbox" id="stealError">
+                            <span style="font-size:13px;">這次推進有一段是因為守備失誤（會計入球隊失誤數）</span>
+                        </label>
+                    </div>
+                    <button class="btn btn-primary btn-block" id="stealConfirm">確認</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeStealModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeStealModal);
+        document.addEventListener('keydown', stealEscClose);
+        document.body.appendChild(mask);
+
+        const fromSel = document.getElementById('stealFrom');
+        const outcomeSel = document.getElementById('stealOutcome');
+        const toSel = document.getElementById('stealTo');
+        const toWrap = document.getElementById('stealToWrap');
+
+        function syncToOptions() {
+            const from = parseInt(fromSel.value, 10);
+            const opts = [];
+            for (let b = from + 1; b <= 4; b++) opts.push(`<option value="${b}">${BASE_LABEL[b]}</option>`);
+            toSel.innerHTML = opts.join('');
+        }
+        function syncOutcomeUi() {
+            toWrap.style.display = outcomeSel.value === 'CAUGHT' ? 'none' : '';
+        }
+        fromSel.addEventListener('change', syncToOptions);
+        outcomeSel.addEventListener('change', syncOutcomeUi);
+        syncToOptions();
+        syncOutcomeUi();
+
+        document.getElementById('stealConfirm').addEventListener('click', async () => {
+            const fromBase = parseInt(fromSel.value, 10);
+            const outcome = outcomeSel.value;
+            const toBase = outcome === 'CAUGHT' ? null : parseInt(toSel.value, 10);
+            const error = outcome === 'CAUGHT' ? false : document.getElementById('stealError').checked;
+            try {
+                const data = await post(`/api/games/${gameId}/steal`, { fromBase, toBase, outcome, error });
+                closeStealModal();
+                toast('已記錄盜壘');
+                if (refresh) refresh(data);
+            } catch (e) {
+                toast(e.message, true);
+            }
+        });
+    }
+
+    function stealEscClose(e) { if (e.key === 'Escape') closeStealModal(); }
+
+    function closeStealModal() {
+        document.querySelectorAll('#stealModalMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', stealEscClose);
+    }
+
+    /* ---------------------------------------------------------- 編輯壘包（不可預期狀況下的手動控制） */
+
+    /**
+     * 開啟編輯壘包面板：直接指定三個壘包各是誰（或無人），用於現有規則涵蓋不到的特殊狀況。
+     * bases：state.game.bases。battingList：目前進攻方的打線（state.awayLineup 或 state.homeLineup）。
+     */
+    function openBaseEditModal(gameId, bases, battingList, refresh) {
+        closeBaseEditModal();
+
+        if (!battingList || !battingList.length) {
+            toast('目前沒有打線可供選擇', true);
+            return;
+        }
+
+        function optionsFor(currentLineupId) {
+            let html = `<option value="">（無人）</option>`;
+            html += battingList.map(p => `<option value="${p.lineupId}" ${p.lineupId === currentLineupId ? 'selected' : ''}>
+                ${esc(p.order)}棒　${esc(p.name)}（#${esc(p.number)}）</option>`).join('');
+            return html;
+        }
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'baseEditModalMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="編輯壘包" style="max-width:420px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">編輯壘包</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <p style="font-size:12px;color:var(--muted);margin:0;">用於場上發生現有功能無法涵蓋的特殊狀況時，直接手動指定壘包狀態，請謹慎使用。</p>
+                    <label><span class="field-label">一壘</span>
+                        <select class="input" id="baseEditFirst">${optionsFor(bases.first ? bases.first.lineupId : null)}</select>
+                    </label>
+                    <label><span class="field-label">二壘</span>
+                        <select class="input" id="baseEditSecond">${optionsFor(bases.second ? bases.second.lineupId : null)}</select>
+                    </label>
+                    <label><span class="field-label">三壘</span>
+                        <select class="input" id="baseEditThird">${optionsFor(bases.third ? bases.third.lineupId : null)}</select>
+                    </label>
+                    <button class="btn btn-primary btn-block" id="baseEditConfirm">確認更新</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeBaseEditModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeBaseEditModal);
+        document.addEventListener('keydown', baseEditEscClose);
+        document.body.appendChild(mask);
+
+        document.getElementById('baseEditConfirm').addEventListener('click', async () => {
+            const firstVal = document.getElementById('baseEditFirst').value;
+            const secondVal = document.getElementById('baseEditSecond').value;
+            const thirdVal = document.getElementById('baseEditThird').value;
+            const runnerFirst = firstVal ? parseInt(firstVal, 10) : null;
+            const runnerSecond = secondVal ? parseInt(secondVal, 10) : null;
+            const runnerThird = thirdVal ? parseInt(thirdVal, 10) : null;
+
+            const picked = [runnerFirst, runnerSecond, runnerThird].filter(v => v !== null);
+            if (new Set(picked).size !== picked.length) {
+                toast('同一位球員不能同時站在兩個壘包', true);
+                return;
+            }
+
+            try {
+                const data = await post(`/api/games/${gameId}/bases`, { runnerFirst, runnerSecond, runnerThird });
+                closeBaseEditModal();
+                toast('已更新壘包狀態');
+                if (refresh) refresh(data);
+            } catch (e) {
+                toast(e.message, true);
+            }
+        });
+    }
+
+    function baseEditEscClose(e) { if (e.key === 'Escape') closeBaseEditModal(); }
+
+    function closeBaseEditModal() {
+        document.querySelectorAll('#baseEditModalMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', baseEditEscClose);
+    }
+
+    /* ---------------------------------------------------------- 編輯比分（修正手誤，逐局編輯，總分自動同步） */
+
+    /**
+     * 開啟編輯比分面板：選隊伍 + 選局數 + 輸入該局分數，用來修正手誤造成的比分錯誤。
+     * 送出後後端會自動把該隊總分重算成「每一局分數的加總」，確保總分跟每局分數永遠對得起來。
+     * awayName / homeName：顯示用的隊名。innings：state.scoreboard.innings（{ inning, away, home, current }，
+     * away/home 是字串，尚未打過該局時是 "-"）。
+     */
+    function openScoreEditModal(gameId, awayName, homeName, innings, refresh) {
+        closeScoreEditModal();
+
+        if (!innings || !innings.length) {
+            toast('目前沒有局數資料可供編輯', true);
+            return;
+        }
+
+        const inningOptions = innings.map(i => `<option value="${i.inning}">第 ${i.inning} 局</option>`).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'scoreEditModalMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="編輯比分" style="max-width:380px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">編輯比分</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <p style="font-size:12px;color:var(--muted);margin:0;">修正某一局的得分，送出後總分會自動重算成每局分數的加總，確保總分跟每局分數對得起來。</p>
+                    <label><span class="field-label">隊伍</span>
+                        <select class="input" id="scoreEditSide">
+                            <option value="AWAY">${esc(awayName)}（客隊）</option>
+                            <option value="HOME">${esc(homeName)}（主隊）</option>
+                        </select>
+                    </label>
+                    <label><span class="field-label">局數</span>
+                        <select class="input" id="scoreEditInning">${inningOptions}</select>
+                    </label>
+                    <label><span class="field-label">該局得分</span>
+                        <input class="input" id="scoreEditRuns" type="number" min="0" step="1" value="0">
+                    </label>
+                    <button class="btn btn-primary btn-block" id="scoreEditConfirm">確認更新</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeScoreEditModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeScoreEditModal);
+        document.addEventListener('keydown', scoreEditEscClose);
+        document.body.appendChild(mask);
+
+        const sideSel = document.getElementById('scoreEditSide');
+        const inningSel = document.getElementById('scoreEditInning');
+        const runsInput = document.getElementById('scoreEditRuns');
+
+        function syncRuns() {
+            const inning = parseInt(inningSel.value, 10);
+            const row = innings.find(i => i.inning === inning);
+            const raw = row ? (sideSel.value === 'AWAY' ? row.away : row.home) : '-';
+            runsInput.value = raw === '-' ? 0 : raw;
+        }
+        sideSel.addEventListener('change', syncRuns);
+        inningSel.addEventListener('change', syncRuns);
+        syncRuns();
+
+        document.getElementById('scoreEditConfirm').addEventListener('click', async () => {
+            const side = sideSel.value;
+            const inning = parseInt(inningSel.value, 10);
+            const runs = parseInt(runsInput.value, 10);
+            if (isNaN(runs) || runs < 0) {
+                toast('請輸入不小於 0 的分數', true);
+                return;
+            }
+            try {
+                const data = await post(`/api/games/${gameId}/score`, { side, inning, runs });
+                closeScoreEditModal();
+                toast('已更新比分');
+                if (refresh) refresh(data);
+            } catch (e) {
+                toast(e.message, true);
+            }
+        });
+    }
+
+    function scoreEditEscClose(e) { if (e.key === 'Escape') closeScoreEditModal(); }
+
+    function closeScoreEditModal() {
+        document.querySelectorAll('#scoreEditModalMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', scoreEditEscClose);
+    }
+
     /* ---------------------------------------------------------- 編輯動作 */
 
     function bindEditorActions(gameId, refresh) {
@@ -540,6 +815,9 @@ const BB = (() => {
         renderPitches, renderScoreboard, renderFeed, renderField, bindEditorActions,
         initPlayerLog, openPlayerModal, closePlayerModal,
         openSubstituteModal, closeSubstituteModal,
-        openPositionSwapModal, closePositionSwapModal
+        openPositionSwapModal, closePositionSwapModal,
+        openStealModal, closeStealModal,
+        openBaseEditModal, closeBaseEditModal,
+        openScoreEditModal, closeScoreEditModal
     };
 })();

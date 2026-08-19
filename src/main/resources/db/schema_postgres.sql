@@ -118,7 +118,9 @@ CREATE TABLE game_lineup (
     active        BOOLEAN    NOT NULL DEFAULT TRUE,
     at_bats       INT        NOT NULL DEFAULT 0,
     hits          INT        NOT NULL DEFAULT 0,
-    rbi           INT        NOT NULL DEFAULT 0
+    rbi           INT        NOT NULL DEFAULT 0,
+    stolen_bases    INT      NOT NULL DEFAULT 0,          -- 本場盜壘成功次數
+    caught_stealing INT      NOT NULL DEFAULT 0           -- 本場被阻殺次數
 );
 CREATE INDEX idx_lineup_game      ON game_lineup (game_id);
 CREATE INDEX idx_lineup_game_side ON game_lineup (game_id, team_side);

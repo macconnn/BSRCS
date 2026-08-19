@@ -120,6 +120,39 @@ public class GameApiController {
         return ApiResponse.ok("已互換守備位置", queryService.gameState(id, true));
     }
 
+    /** 盜壘：獨立於打席結果之外的跑者事件，不影響打者打數、不結束打席 */
+    @RequireEditor
+    @PostMapping("/{id}/steal")
+    public ApiResponse<Map<String, Object>> steal(@PathVariable Long id,
+                                                   @Valid @RequestBody StealRequest req,
+                                                   HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.recordSteal(id, req.getFromBase(), req.getToBase(), req.getOutcome(), req.isError());
+        return ApiResponse.ok("已記錄盜壘", queryService.gameState(id, true));
+    }
+
+    /** 手動編輯壘包狀態：處理現有規則涵蓋不到的特殊狀況 */
+    @RequireEditor
+    @PostMapping("/{id}/bases")
+    public ApiResponse<Map<String, Object>> editBases(@PathVariable Long id,
+                                                       @Valid @RequestBody BaseEditRequest req,
+                                                       HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.editBases(id, req.getRunnerFirst(), req.getRunnerSecond(), req.getRunnerThird());
+        return ApiResponse.ok("已更新壘包狀態", queryService.gameState(id, true));
+    }
+
+    /** 手動編輯某一局的得分：修正手誤，並自動同步重算該隊總分，確保總分與每局分數對得起來 */
+    @RequireEditor
+    @PostMapping("/{id}/score")
+    public ApiResponse<Map<String, Object>> editScore(@PathVariable Long id,
+                                                       @Valid @RequestBody ScoreEditRequest req,
+                                                       HttpServletRequest request) {
+        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        scoringService.editInningScore(id, req.getSide(), req.getInning(), req.getRuns());
+        return ApiResponse.ok("已更新比分", queryService.gameState(id, true));
+    }
+
     @RequireEditor
     @PostMapping("/{id}/next-batter")
     public ApiResponse<Map<String, Object>> next(@PathVariable Long id, HttpServletRequest request) {
