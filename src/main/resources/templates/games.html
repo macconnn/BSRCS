@@ -85,11 +85,24 @@
         const foot = live
             ? BB.esc(g.inningLabel) + ' · ' + g.outs + ' OUT · 更新時間 ' + BB.esc(g.updatedAt)
             : (g.winner ? BB.esc(g.winner) + '勝 · ' : '') + '最後更新 ' + BB.esc(g.updatedAt);
+        // 平常只顯示一枝筆的小圖示；點一下展開下拉選單，選單裡目前只有「刪除比賽」一個選項
+        // 之後要加其他動作（例如編輯、複製），直接在 dropdown-menu 裡多加一個 .dropdown-item 按鈕即可
+        const actions = canEdit
+            ? `<div class="card-actions" data-delete-id="${g.id}" data-delete-name="${BB.esc(g.name)}">
+                   <button type="button" class="icon-toggle" aria-haspopup="true" aria-expanded="false" title="更多操作" aria-label="更多操作">✎</button>
+                   <div class="dropdown-menu" hidden>
+                       <button type="button" class="dropdown-item danger" data-action="delete">🗑 刪除比賽</button>
+                   </div>
+               </div>`
+            : '';
         return `
             <a class="card game-card" href="/games/${g.id}">
                 <div class="row1">
                     <span class="pill ${live ? 'pill-live' : 'pill-done'}">${BB.esc(g.statusLabel)}</span>
-                    <span style="color:var(--muted);font-size:12px;">${BB.esc(g.gameDate)}</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="color:var(--muted);font-size:12px;">${BB.esc(g.gameDate)}</span>
+                        ${actions}
+                    </div>
                 </div>
                 <div style="font-weight:700;margin-top:8px;">${BB.esc(g.name)}</div>
                 <div class="score-line">
@@ -123,6 +136,63 @@
             BB.toast(e.message, true);
         }
     }
+
+    // 卡片右上角的下拉選單：點鉛筆圖示開關選單；卡片本身是 <a> 連結，
+    // 用事件委派 + preventDefault/stopPropagation 避免誤觸連結導航
+    function closeAllMenus() {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.hidden = true);
+        document.querySelectorAll('.icon-toggle').forEach(b => b.setAttribute('aria-expanded', 'false'));
+    }
+
+    document.getElementById('list').addEventListener('click', async (e) => {
+        const actions = e.target.closest('.card-actions');
+        const toggleBtn = e.target.closest('.icon-toggle');
+        const menuItem = e.target.closest('.dropdown-item');
+
+        // 點卡片內其他地方（非選單相關按鈕）：收合所有已展開的選單，讓連結正常導航
+        if (!actions) {
+            closeAllMenus();
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 點鉛筆圖示：開關這張卡片的下拉選單，其他卡片已展開的先收合
+        if (toggleBtn) {
+            const menu = actions.querySelector('.dropdown-menu');
+            const willOpen = menu.hidden;
+            closeAllMenus();
+            menu.hidden = !willOpen;
+            toggleBtn.setAttribute('aria-expanded', String(willOpen));
+            return;
+        }
+
+        // 點選單裡的項目：目前只有「刪除比賽」，之後新增其他動作時依 data-action 分流即可
+        if (menuItem) {
+            closeAllMenus();
+            if (menuItem.dataset.action === 'delete') {
+                const id = actions.dataset.deleteId;
+                const name = actions.dataset.deleteName;
+                if (!confirm(`確定要刪除「${name}」這場比賽嗎？\n所有打席、投球、比分等紀錄都會一併刪除，且無法復原。`)) return;
+
+                menuItem.disabled = true;
+                try {
+                    await BB.del('/api/games/' + id);
+                    BB.toast('比賽紀錄已刪除');
+                    load();
+                } catch (err) {
+                    BB.toast(err.message, true);
+                }
+            }
+        }
+    });
+
+    // 點卡片以外的地方（例如空白處），收合所有已展開的選單
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.card-actions')) return;
+        closeAllMenus();
+    });
 
     document.querySelectorAll('[data-filter]').forEach(tab => tab.addEventListener('click', () => {
         filter = tab.dataset.filter;
