@@ -1,0 +1,37 @@
+name: Deploy to Render on main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # 先確認能編譯成功（含跑 src/test，如果之後有補測試的話也會一併驗證）
+      # 只是想確認能編譯過、還沒有測試的話，可以把這行改成 mvn -B -q clean compile
+      - name: Build with Maven
+        run: mvn -B clean package -DskipTests=false
+
+      # 編譯成功才會執行到這一步，觸發 Render 重新部署 main 最新的 commit
+      - name: Trigger Render deploy
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL 是空的，請確認 repo Secrets 有設定。"
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"
+          echo "已觸發 Render 部署"
