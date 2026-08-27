@@ -69,10 +69,16 @@
                 <span class="base first" data-base-first></span>
                 <span class="base home"></span>
             </div>
-            <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
-                <button class="btn btn-sm" id="stealBtn">🏃 盜壘</button>
-                <button class="btn btn-sm" id="errorAdvanceBtn">⚠️ 失誤推進</button>
-                <button class="btn btn-sm" id="baseEditBtn">✏️ 編輯壘包</button>
+            <div style="display:flex;justify-content:center;margin-top:8px;">
+                <div class="card-actions">
+                    <button type="button" class="icon-toggle" id="baseActionsToggle" aria-haspopup="true" aria-expanded="false" title="更多操作" aria-label="更多操作">✎</button>
+                    <div class="dropdown-menu" id="baseActionsMenu" hidden>
+                        <button type="button" class="dropdown-item" data-action="undo">↩ 上一步</button>
+                        <button type="button" class="dropdown-item" id="stealBtn">🏃 盜壘</button>
+                        <button type="button" class="dropdown-item" id="errorAdvanceBtn">⚠️ 失誤推進</button>
+                        <button type="button" class="dropdown-item" id="baseEditBtn">✏️ 編輯壘包</button>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -163,8 +169,8 @@
                 <div class="result-echo" id="resultEcho">本打席結果將顯示於此</div>
 
                 <div class="nav-row">
-                    <!-- 2024 需求：暫時隱藏「上一打席／下一打席」按鈕，功能（data-action 綁定）保留，之後如需恢復顯示，取消下方註解即可 -->
-                    <!-- <button class="btn" data-action="undo">上一打席</button> -->
+                    <!-- 「上一打席」已移入上方壘包區的下拉選單（更多操作） -->
+                    <!-- 暫時隱藏「下一打席」按鈕，功能（data-action 綁定）保留，之後如需恢復顯示，取消下方註解即可 -->
                     <!-- <button class="btn btn-primary" data-action="next">下一打席</button> -->
                 </div>
             </div>
@@ -283,6 +289,28 @@
         if (!latest) return;
         const list = activeTab === 'away' ? latest.awayLineup : latest.homeLineup;
         BB.openPositionSwapModal(GAME_ID, activeTab.toUpperCase(), list, refresh);
+    });
+
+    // 「更多操作」下拉選單：盜壘／失誤推進／編輯壘包／上一打席
+    const baseActionsToggle = document.getElementById('baseActionsToggle');
+    const baseActionsMenu = document.getElementById('baseActionsMenu');
+    baseActionsToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = baseActionsMenu.hidden;
+        baseActionsMenu.hidden = !willOpen;
+        baseActionsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    // 點選單內任一項目後自動收合（各項目原本要做的事，交給下方各自的 click 監聽器處理）
+    baseActionsMenu.addEventListener('click', () => {
+        baseActionsMenu.hidden = true;
+        baseActionsToggle.setAttribute('aria-expanded', 'false');
+    });
+    // 點選單以外的地方收合
+    document.addEventListener('click', (e) => {
+        if (!baseActionsMenu.hidden && !e.target.closest('.card-actions')) {
+            baseActionsMenu.hidden = true;
+            baseActionsToggle.setAttribute('aria-expanded', 'false');
+        }
     });
 
     // 盜壘／編輯壘包一律針對「目前進攻方」，跟畫面上選看哪一隊打線（activeTab）無關。

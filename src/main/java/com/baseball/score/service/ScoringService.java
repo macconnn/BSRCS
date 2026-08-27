@@ -680,6 +680,10 @@ public class ScoringService {
             game.setActionSeq(snap.getActionSeq() - 1);
 
             inningRepo.deleteAll(inningRepo.findByGameIdOrderByInningAsc(game.getId()));
+            // 注意：deleteAll() 後緊接著 save() 新資料時，Hibernate 預設會把「INSERT」排在「DELETE」之前送出，
+            // 這裡的新資料跟剛刪除的資料可能是同一組 (game_id, team_side, inning)，沒有先 flush 的話
+            // 會因為舊資料實際上還沒被刪除，插入時撞到 uk_inning_score 唯一索引而失敗。
+            inningRepo.flush();
             for (Map<String, Object> m : (List<Map<String, Object>>) state.get("innings")) {
                 inningRepo.save(InningScore.builder()
                         .game(game)
