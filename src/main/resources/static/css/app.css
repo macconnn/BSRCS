@@ -89,7 +89,7 @@ table { border-collapse: collapse; width: 100%; }
 .scorepanel {
     background: var(--navy); color: #fff; border-radius: var(--radius);
     display: grid; grid-template-columns: 300px 1fr 1fr 260px;
-    gap: 0; overflow: hidden; margin-bottom: 16px;
+    gap: 0; overflow: visible; margin-bottom: 16px;
 }
 .scorepanel > div { padding: 16px 20px; }
 .scorepanel > div + div { border-left: 1px solid var(--navy-line); }
@@ -401,9 +401,9 @@ table { border-collapse: collapse; width: 100%; }
 .game-card .row1 { display: flex; align-items: center; justify-content: space-between; }
 .card-actions { position: relative; display: flex; align-items: center; }
 .icon-toggle {
-    width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border);
+    min-width: 24px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border);
     background: #fff; color: var(--muted); font-size: 13px; line-height: 1;
-    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer;
 }
 .icon-toggle:hover, .icon-toggle[aria-expanded="true"] { background: #f1f5f9; color: var(--blue); }
 .dropdown-menu {
