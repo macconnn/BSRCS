@@ -10,8 +10,11 @@ public class AppProperties {
 
     private boolean seed = false;
     private String defaultEditorEmail;
+    /** 預設管理員帳號（Role.ADMIN）：App 啟動時如果 app_user 表格裡還沒有這個 Email，會自動建立一筆 */
+    private String defaultAdminEmail;
+    private String defaultAdminDisplayName;
     /** App 版本號，只顯示在登入頁角落，方便確認目前部署的是哪個版本 */
-    private String version = "v1.1.3";
+    private String version = "v1.2.0";
     /**
      * 是否開放記錄「球種」與「球速」。
      * true（預設）：球數紀錄卡片會顯示球種下拉選單、球速輸入框，記錄員可以自行選填。

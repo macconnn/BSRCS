@@ -21,4 +21,6 @@ public class CurrentUser {
     public boolean isLoggedIn() { return userId != null; }
 
     public boolean canEdit() { return role == Role.EDITOR || role == Role.ADMIN; }
+
+    public boolean isAdmin() { return role == Role.ADMIN; }
 }

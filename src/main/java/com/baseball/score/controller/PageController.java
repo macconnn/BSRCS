@@ -5,6 +5,7 @@ import com.baseball.score.config.AuthInterceptor;
 import com.baseball.score.config.CurrentUser;
 import com.baseball.score.entity.Game;
 import com.baseball.score.enums.DeviceType;
+import com.baseball.score.enums.Role;
 import com.baseball.score.repository.GameRepository;
 import com.baseball.score.util.DeviceUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,6 +48,7 @@ public class PageController {
     public String games(HttpServletRequest request, Model model) {
         CurrentUser user = currentUser(request);
         model.addAttribute("canEdit", user.canEdit());
+        model.addAttribute("isAdmin", user.isAdmin());
         model.addAttribute("displayName", user.getDisplayName());
         return "games";
     }
@@ -55,6 +57,7 @@ public class PageController {
     public String teams(HttpServletRequest request, Model model) {
         CurrentUser user = currentUser(request);
         model.addAttribute("canEdit", user.canEdit());
+        model.addAttribute("isAdmin", user.isAdmin());
         model.addAttribute("displayName", user.getDisplayName());
         return "teams";
     }
@@ -64,8 +67,23 @@ public class PageController {
         CurrentUser user = currentUser(request);
         model.addAttribute("teamId", id);
         model.addAttribute("canEdit", user.canEdit());
+        model.addAttribute("isAdmin", user.isAdmin());
         model.addAttribute("displayName", user.getDisplayName());
         return "team-detail";
+    }
+
+    /** 帳號管理：僅 ADMIN 可用。非管理員（含未登入、EDITOR）一律導回 /games，避免直接打網址繞過權限。 */
+    @GetMapping("/admin/users")
+    public String adminUsers(HttpServletRequest request, Model model) {
+        CurrentUser user = currentUser(request);
+        if (!user.isAdmin()) {
+            return "redirect:/games";
+        }
+        model.addAttribute("canEdit", user.canEdit());
+        model.addAttribute("isAdmin", true);
+        model.addAttribute("displayName", user.getDisplayName());
+        model.addAttribute("roles", Role.values());
+        return "admin-users";
     }
 
     @GetMapping("/games/{id}")

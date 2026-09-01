@@ -15,6 +15,7 @@
             <span class="badge badge-muted" th:if="${!canEdit}">👁 瀏覽者（僅可觀看）</span>
             <span class="badge" th:if="${canEdit}" th:text="'✎ ' + ${displayName}">編輯者</span>
             <a class="btn" href="/games">我的比賽</a>
+            <a class="btn" th:if="${isAdmin}" href="/admin/users">帳號管理</a>
             <a class="btn" th:if="${!canEdit}" href="/">編輯者登入</a>
         </div>
     </header>
