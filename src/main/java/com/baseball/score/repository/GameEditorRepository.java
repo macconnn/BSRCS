@@ -5,5 +5,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GameEditorRepository extends JpaRepository<GameEditor, Long> {
     boolean existsByGameIdAndUserId(Long gameId, Long userId);
-    void deleteByGameId(Long gameId);
 }

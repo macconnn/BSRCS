@@ -607,12 +607,6 @@ public class ScoringService {
     private void snapshot(Game game, String actionName) {
         try {
             Map<String, Object> state = new LinkedHashMap<>();
-            // 記錄快照當下「正在進行中、尚未結束」的打席 id（如果有的話）。
-            // 之所以需要這個，是因為 recordResult()／nextBatter() 這類動作，
-            // 有時是「修改」一筆已存在的打席（把它標記為結束、填入結果），而不是新建一筆；
-            // 復原時單靠「刪除快照之後新增的紀錄」抓不到這種修改，必須額外把這筆打席重置回進行中狀態。
-            AtBat activeAtBat = atBatRepo.findFirstByGameIdAndFinishedFalseOrderBySeqNoDesc(game.getId()).orElse(null);
-            state.put("activeAtBatId", activeAtBat == null ? null : activeAtBat.getId());
             state.put("inning", game.getInning());
             state.put("half", game.getHalf().name());
             state.put("outs", game.getOuts());
@@ -666,23 +660,6 @@ public class ScoringService {
             atBatRepo.deleteAll(atBatRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
             eventRepo.deleteAll(eventRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
 
-            // 把快照當時「正在進行中」的打席重置回進行中狀態：
-            // 如果這筆打席在快照之後被 recordResult()／nextBatter() 標記為已結束（例如誤按成一壘安打），
-            // 上面的刪除條件抓不到它（因為它是被「修改」而不是「新增」），這裡明確把它重置回乾淨的進行中狀態，
-            // 這樣重新記錄正確結果時，才會接續回同一筆打席，而不是另外新開一筆。
-            Long activeAtBatId = asLong(state.get("activeAtBatId"));
-            if (activeAtBatId != null) {
-                atBatRepo.findById(activeAtBatId).ifPresent(ab -> {
-                    ab.setFinished(false);
-                    ab.setResult(null);
-                    ab.setRbi(0);
-                    ab.setOutsRecorded(0);
-                    ab.setRunsScored(0);
-                    ab.setDescription(null);
-                    atBatRepo.save(ab);
-                });
-            }
-
             game.setInning(asInt(state.get("inning")));
             game.setHalf(InningHalf.valueOf((String) state.get("half")));
             game.setOuts(asInt(state.get("outs")));
@@ -703,10 +680,6 @@ public class ScoringService {
             game.setActionSeq(snap.getActionSeq() - 1);
 
             inningRepo.deleteAll(inningRepo.findByGameIdOrderByInningAsc(game.getId()));
-            // 注意：deleteAll() 後緊接著 save() 新資料時，Hibernate 預設會把「INSERT」排在「DELETE」之前送出，
-            // 這裡的新資料跟剛刪除的資料可能是同一組 (game_id, team_side, inning)，沒有先 flush 的話
-            // 會因為舊資料實際上還沒被刪除，插入時撞到 uk_inning_score 唯一索引而失敗。
-            inningRepo.flush();
             for (Map<String, Object> m : (List<Map<String, Object>>) state.get("innings")) {
                 inningRepo.save(InningScore.builder()
                         .game(game)

@@ -35,6 +35,7 @@ public class DataSeeder implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         seedDefaultEditor();
+        seedDefaultAdmin();
         if (!props.isSeed() || gameRepo.count() > 0) return;
 
         Team blue = teamRepo.save(Team.builder().name("藍隊").shortName("藍").colorHex("#1d4ed8").build());
@@ -115,6 +116,28 @@ public class DataSeeder implements ApplicationRunner {
         .enabled(true)
         .build());
     log.info("已建立預設編輯者帳號：id={}, email={}", user.getId(), normalized);
+  }
+
+  /** 啟動時確保有一個 ADMIN 帳號存在，方便第一次部署時有人可以登入去新增其他帳號（見「帳號管理」功能）。 */
+  private void seedDefaultAdmin() {
+    String email = props.getDefaultAdminEmail();
+    if (!StringUtils.hasText(email)) return;
+    String normalized = email.trim().toLowerCase();
+
+    if (userRepo.findByEmailIgnoreCase(normalized).isPresent()) {
+      log.info("預設管理員帳號已存在，略過新增：{}", normalized);
+      return;
+    }
+    String displayName = StringUtils.hasText(props.getDefaultAdminDisplayName())
+        ? props.getDefaultAdminDisplayName()
+        : normalized.substring(0, normalized.indexOf('@'));
+    AppUser user = userRepo.save(AppUser.builder()
+        .email(normalized)
+        .displayName(displayName)
+        .role(Role.ADMIN)
+        .enabled(true)
+        .build());
+    log.info("已建立預設管理員帳號：id={}, email={}", user.getId(), normalized);
   }
 
     private List<GameLineup> saveLineup(Game game, Team team, List<Player> players, TeamSide side) {

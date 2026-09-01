@@ -5,6 +5,8 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
+      # 2026 修正：小方案容器記憶體有限，連線池數量也要跟著保守一點（原本 10 條對小型服務來說偏多，
+      # 每條連線都有 client 端 buffer 開銷）。這個 App 目前的併發量不大，5 條夠用。
       maximum-pool-size: 5
   jpa:
     hibernate:

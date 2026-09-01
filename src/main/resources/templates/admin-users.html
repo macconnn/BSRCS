@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>帳號管理 — 線上棒球比賽紀錄表</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" th:href="@{/css/app.css(v=${T(com.baseball.score.config.AssetVersion).VALUE})}">
+</head>
+<body>
+<div class="wrap" style="max-width:720px;">
+
+    <header class="topbar">
+        <div class="brand"><span class="ball">⚾</span><span>帳號管理</span></div>
+        <div class="topbar-actions">
+            <span class="badge" th:text="'✎ ' + ${displayName}">管理員</span>
+            <a class="btn" href="/games">我的比賽</a>
+            <a class="btn" href="/teams">球隊管理</a>
+        </div>
+    </header>
+
+    <p style="color:var(--muted);font-size:12px;margin-bottom:12px;">
+        僅管理員（ADMIN）可以看到並使用這個頁面。登入流程只允許「已經有帳號的 Email」登入，所以要讓新的人可以登入，必須先在這裡幫他建立帳號。
+    </p>
+
+    <div id="list"></div>
+    <section class="card" style="margin-top:16px;">
+        <div class="card-title">新增帳號</div>
+        <div class="card-body" style="display:grid;gap:10px;">
+            <label><span class="field-label">Email</span><input class="input" id="uEmail" type="email" placeholder="name@example.com"></label>
+            <label><span class="field-label">顯示名稱</span><input class="input" id="uDisplayName" placeholder="例如：王小明"></label>
+            <label><span class="field-label">角色</span>
+                <select class="input" id="uRole">
+                    <option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option>
+                </select>
+            </label>
+            <button class="btn btn-primary btn-block" id="createUser">建立帳號</button>
+        </div>
+    </section>
+
+    <!-- 版權標示 -->
+    <footer style="text-align:center;color:var(--muted);font-size:12px;padding:24px 0 4px;">
+        Copyright © 2026 SupremeEden. All rights reserved.
+    </footer>
+</div>
+
+<script th:src="@{/js/app.js(v=${T(com.baseball.score.config.AssetVersion).VALUE})}"></script>
+<script th:inline="javascript">
+    const ROLES = /*[[${roles}]]*/ ['VIEWER', 'EDITOR', 'ADMIN'];
+
+    function fmtDate(s) {
+        if (!s) return '-';
+        return String(s).replace('T', ' ').slice(0, 16);
+    }
+
+    async function load() {
+        try {
+            const users = await BB.get('/api/admin/users');
+            const list = document.getElementById('list');
+            list.innerHTML = users.length ? `
+                <section class="card">
+                    <table class="lineup">
+                        <thead>
+                            <tr><th>顯示名稱</th><th>Email</th><th>角色</th><th>狀態</th><th>建立時間</th><th>最後登入</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(u => `
+                                <tr>
+                                    <td>${BB.esc(u.displayName)}</td>
+                                    <td>${BB.esc(u.email)}</td>
+                                    <td>${BB.esc(u.role)}</td>
+                                    <td>${u.enabled ? '<span class="badge">啟用中</span>' : '<span class="badge badge-muted">已停用</span>'}</td>
+                                    <td style="font-size:12px;color:var(--muted);">${fmtDate(u.createdAt)}</td>
+                                    <td style="font-size:12px;color:var(--muted);">${fmtDate(u.lastLoginAt)}</td>
+                                    <td>
+                                        <button class="btn btn-sm" data-edit-user="${u.id}" data-display-name="${BB.esc(u.displayName)}" data-email="${BB.esc(u.email)}" data-role="${BB.esc(u.role)}">編輯</button>
+                                        <button class="btn btn-sm" data-toggle-user="${u.id}" data-enabled="${u.enabled}">
+                                            ${u.enabled ? '停用' : '啟用'}
+                                        </button>
+                                    </td>
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </section>`
+                : '<div class="card"><div class="empty">目前還沒有任何帳號</div></div>';
+
+            list.querySelectorAll('[data-toggle-user]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.toggleUser;
+                    const currentlyEnabled = btn.dataset.enabled === 'true';
+                    try {
+                        await BB.post(`/api/admin/users/${id}/enabled`, { enabled: !currentlyEnabled });
+                        BB.toast(currentlyEnabled ? '已停用帳號' : '已啟用帳號');
+                        load();
+                    } catch (e) {
+                        BB.toast(e.message, true);
+                    }
+                });
+            });
+
+            list.querySelectorAll('[data-edit-user]').forEach(btn => {
+                btn.addEventListener('click', () => openEditUser(btn.dataset.editUser, btn.dataset.displayName, btn.dataset.email, btn.dataset.role));
+            });
+        } catch (e) {
+            BB.toast(e.message, true);
+        }
+    }
+
+    // ---------------------------------------------------------- 編輯帳號（Email／角色）
+
+    function openEditUser(id, displayName, email, role) {
+        closeEditUser();
+        const roleOptions = ROLES.map(r => `<option value="${r}" ${r === role ? 'selected' : ''}>${r}</option>`).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.id = 'editUserMask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="編輯帳號" style="max-width:380px;">
+                <div class="modal-head">
+                    <div style="font-size:17px;font-weight:700;">編輯帳號</div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:12px;">
+                    <label><span class="field-label">顯示名稱</span><input class="input" id="editDisplayName" value="${BB.esc(displayName)}"></label>
+                    <label><span class="field-label">Email</span><input class="input" id="editEmail" type="email" value="${BB.esc(email)}"></label>
+                    <label><span class="field-label">角色</span>
+                        <select class="input" id="editRole">${roleOptions}</select>
+                    </label>
+                    <button class="btn btn-primary btn-block" id="editUserConfirm">儲存</button>
+                </div>
+            </div>`;
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeEditUser(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeEditUser);
+        document.addEventListener('keydown', editUserEscClose);
+        document.body.appendChild(mask);
+
+        document.getElementById('editUserConfirm').addEventListener('click', async () => {
+            const newDisplayName = document.getElementById('editDisplayName').value.trim();
+            const newEmail = document.getElementById('editEmail').value.trim();
+            const newRole = document.getElementById('editRole').value;
+            try {
+                await BB.request(`/api/admin/users/${id}`, 'PUT', { displayName: newDisplayName, email: newEmail, role: newRole });
+                BB.toast('已更新帳號');
+                closeEditUser();
+                load();
+            } catch (e) {
+                BB.toast(e.message, true);
+            }
+        });
+    }
+
+    function editUserEscClose(e) { if (e.key === 'Escape') closeEditUser(); }
+
+    function closeEditUser() {
+        document.querySelectorAll('#editUserMask').forEach(m => m.remove());
+        document.removeEventListener('keydown', editUserEscClose);
+    }
+
+    document.getElementById('createUser').addEventListener('click', async () => {
+        const email = document.getElementById('uEmail').value.trim();
+        const displayName = document.getElementById('uDisplayName').value.trim();
+        const role = document.getElementById('uRole').value;
+        try {
+            await BB.post('/api/admin/users', { email, displayName, role });
+            document.getElementById('uEmail').value = '';
+            document.getElementById('uDisplayName').value = '';
+            BB.toast('已新增帳號');
+            load();
+        } catch (e) {
+            BB.toast(e.message, true);
+        }
+    });
+
+    load();
+</script>
+</body>
+</html>

@@ -68,15 +68,6 @@ public class GameApiController {
         return ApiResponse.ok("比賽已建立", Map.of("id", game.getId()));
     }
 
-    /** 刪除整場比賽紀錄（含所有打席、投球、比分等關聯資料），操作無法復原 */
-    @RequireEditor
-    @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
-        gameService.deleteGame(id);
-        return ApiResponse.ok("比賽紀錄已刪除", null);
-    }
-
     @RequireEditor
     @PostMapping("/{id}/pitches")
     public ApiResponse<Map<String, Object>> pitch(@PathVariable Long id,

@@ -32,10 +32,6 @@ public class GameService {
     private final GameLineupRepository lineupRepo;
     private final GameEditorRepository gameEditorRepo;
     private final GameEventRepository gameEventRepo;
-    private final AtBatRepository atBatRepo;
-    private final PitchRepository pitchRepo;
-    private final InningScoreRepository inningRepo;
-    private final GameSnapshotRepository snapshotRepo;
 
     @Transactional
     public Game createGame(CreateGameRequest req, Long userId) {
@@ -306,26 +302,5 @@ public class GameService {
             // 預設允許所有已登入的編輯者共同記錄；若要嚴格限制，改成 throw
             gameEditorRepo.save(GameEditor.builder().gameId(gameId).userId(userId).build());
         }
-    }
-
-    /**
-     * 刪除整場比賽（含所有關聯紀錄：投球、打席、每局比分、打線、事件、快照、協同編輯者）。
-     * 因為資料庫的外鍵沒有設定 ON DELETE CASCADE，必須依「子表 → 父表」順序手動刪除，
-     * 否則會因外鍵限制而刪除失敗。
-     */
-    @Transactional
-    public void deleteGame(Long gameId) {
-        Game game = gameRepo.findById(gameId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "找不到比賽"));
-
-        pitchRepo.deleteByGameId(gameId);
-        atBatRepo.deleteByGameId(gameId);
-        inningRepo.deleteByGameId(gameId);
-        gameEventRepo.deleteByGameId(gameId);
-        snapshotRepo.deleteByGameId(gameId);
-        lineupRepo.deleteByGameId(gameId);
-        gameEditorRepo.deleteByGameId(gameId);
-
-        gameRepo.delete(game);
     }
 }

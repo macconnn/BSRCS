@@ -28,7 +28,6 @@ const BB = (() => {
 
     const get = (url) => request(url, 'GET');
     const post = (url, body) => request(url, 'POST', body);
-    const del = (url) => request(url, 'DELETE');
 
     function toast(message, isError = false) {
         let el = document.querySelector('.toast');
@@ -890,7 +889,7 @@ const BB = (() => {
 
     return {
         POSITIONS,
-        request, get, post, del, toast, esc, loadState, poll, run,
+        request, get, post, toast, esc, loadState, poll, run,
         renderCounts, renderBases, renderLineup, renderMiniLineup, renderBatterFoot,
         renderPitches, renderScoreboard, renderFeed, renderField, bindEditorActions,
         initPlayerLog, openPlayerModal, closePlayerModal,

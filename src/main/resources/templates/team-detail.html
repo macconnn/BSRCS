@@ -19,6 +19,7 @@
             <span class="badge badge-muted" th:if="${!canEdit}">👁 僅可檢視</span>
             <button class="btn" th:if="${canEdit}" id="editTeamBtn">編輯球隊</button>
             <a class="btn" href="/games">我的比賽</a>
+            <a class="btn" th:if="${isAdmin}" href="/admin/users">帳號管理</a>
         </div>
     </header>
 

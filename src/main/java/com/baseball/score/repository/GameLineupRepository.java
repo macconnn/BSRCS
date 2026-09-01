@@ -8,5 +8,4 @@ import java.util.List;
 public interface GameLineupRepository extends JpaRepository<GameLineup, Long> {
     List<GameLineup> findByGameIdAndTeamSideAndActiveTrueOrderByBattingOrderAsc(Long gameId, TeamSide side);
     List<GameLineup> findByGameIdOrderByTeamSideAscBattingOrderAsc(Long gameId);
-    void deleteByGameId(Long gameId);
 }

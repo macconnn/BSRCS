@@ -89,7 +89,7 @@ table { border-collapse: collapse; width: 100%; }
 .scorepanel {
     background: var(--navy); color: #fff; border-radius: var(--radius);
     display: grid; grid-template-columns: 300px 1fr 1fr 260px;
-    gap: 0; overflow: visible; margin-bottom: 16px;
+    gap: 0; overflow: hidden; margin-bottom: 16px;
 }
 .scorepanel > div { padding: 16px 20px; }
 .scorepanel > div + div { border-left: 1px solid var(--navy-line); }
@@ -395,32 +395,10 @@ table { border-collapse: collapse; width: 100%; }
     border-radius: 9px; background: var(--blue); color: #fff; font-size: 11px;
 }
 
-.game-card { display: block; padding: 16px; overflow: visible; }
+.game-card { display: block; padding: 16px; }
 .game-card:hover { border-color: #c7d2e4; }
 .game-card + .game-card { margin-top: 12px; }
 .game-card .row1 { display: flex; align-items: center; justify-content: space-between; }
-.card-actions { position: relative; display: flex; align-items: center; }
-.icon-toggle {
-    min-width: 24px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border);
-    background: #fff; color: var(--muted); font-size: 13px; line-height: 1;
-    display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer;
-}
-.icon-toggle:hover, .icon-toggle[aria-expanded="true"] { background: #f1f5f9; color: var(--blue); }
-.dropdown-menu {
-    position: absolute; top: calc(100% + 4px); right: 0; z-index: 20;
-    min-width: 140px; background: #fff; border: 1px solid var(--border);
-    border-radius: 10px; box-shadow: 0 8px 20px rgba(15, 23, 42, .12);
-    padding: 4px; display: flex; flex-direction: column; gap: 2px;
-}
-.dropdown-menu[hidden] { display: none !important; }
-.dropdown-item {
-    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
-    padding: 8px 10px; border-radius: 7px; border: none; background: none;
-    font-size: 13px; color: var(--text); cursor: pointer;
-}
-.dropdown-item:hover { background: #f1f5f9; }
-.dropdown-item.danger { color: var(--red); }
-.dropdown-item.danger:hover { background: var(--red-soft); }
 .pill { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 8px; }
 .pill-live { background: #dcfce7; color: #15803d; }
 .pill-done { background: #f1f5f9; color: var(--muted); }
