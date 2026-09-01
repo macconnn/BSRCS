@@ -37,6 +37,16 @@ public class AuthInterceptor implements HandlerInterceptor {
                 response.getWriter().write("{\"success\":false,\"message\":\"僅編輯者可執行此操作，請先登入\"}");
                 return false;
             }
+
+            boolean needAdmin = hm.hasMethodAnnotation(RequireAdmin.class)
+                    || hm.getBeanType().isAnnotationPresent(RequireAdmin.class);
+            if (needAdmin && !user.isAdmin()) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write("{\"success\":false,\"message\":\"僅管理員可執行此操作\"}");
+                return false;
+            }
         }
         return true;
     }

@@ -15,6 +15,7 @@
             <span class="badge badge-muted" th:if="${!canEdit}">👁 瀏覽者</span>
             <span class="badge" th:if="${canEdit}" th:text="'✎ ' + ${displayName}">編輯者</span>
             <a class="btn" href="/teams">球隊管理</a>
+            <a class="btn" th:if="${isAdmin}" href="/admin/users">帳號管理</a>
             <a class="btn" th:if="${!canEdit}" href="/">編輯者登入</a>
             <button class="btn" th:if="${canEdit}" id="logoutBtn">登出</button>
         </div>
