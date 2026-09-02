@@ -429,7 +429,7 @@ table { border-collapse: collapse; width: 100%; }
 .game-card .teamname { font-weight: 600; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------------------------------------------------------------- 球隊管理 */
-.team-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.team-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; overflow: visible; }
 .team-card + .team-card { margin-top: 10px; }
 .team-badge {
     width: 42px; height: 42px; border-radius: 12px; flex: none;

@@ -4,6 +4,7 @@ import com.baseball.score.dto.PlayerRequest;
 import com.baseball.score.dto.TeamRequest;
 import com.baseball.score.entity.Player;
 import com.baseball.score.entity.Team;
+import com.baseball.score.repository.GameRepository;
 import com.baseball.score.repository.PlayerRepository;
 import com.baseball.score.repository.TeamRepository;
 import com.baseball.score.util.ApiException;
@@ -23,6 +24,7 @@ public class TeamService {
 
     private final TeamRepository teamRepo;
     private final PlayerRepository playerRepo;
+    private final GameRepository gameRepo;
     private final PlayerStatsService statsService;
 
     @Transactional(readOnly = true)
@@ -118,6 +120,20 @@ public class TeamService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "找不到球員"));
         player.setActive(false);
         playerRepo.save(player);
+    }
+
+    /** 刪除整支球隊（含旗下球員）。若球隊已經有比賽紀錄（不論主客場）則禁止刪除，避免留下對應不到球隊的比賽資料 */
+    @Transactional
+    public void deleteTeam(Long teamId) {
+        Team team = teamRepo.findById(teamId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "找不到球隊"));
+
+        if (gameRepo.existsByAwayTeamIdOrHomeTeamId(teamId, teamId)) {
+            throw new ApiException("此球隊已有比賽紀錄，無法刪除；請先刪除相關比賽紀錄");
+        }
+
+        playerRepo.deleteByTeamId(teamId);
+        teamRepo.delete(team);
     }
 
     private String blankToNull(String s) {

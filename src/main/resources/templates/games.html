@@ -78,6 +78,7 @@
 <script th:src="@{/js/app.js(v=${T(com.baseball.score.config.AssetVersion).VALUE})}"></script>
 <script th:inline="javascript">
     const canEdit = [[${canEdit}]];
+    const isAdmin = [[${isAdmin}]];
     let filter = 'live';
     let keyword = '';
 
@@ -86,9 +87,9 @@
         const foot = live
             ? BB.esc(g.inningLabel) + ' · ' + g.outs + ' OUT · 更新時間 ' + BB.esc(g.updatedAt)
             : (g.winner ? BB.esc(g.winner) + '勝 · ' : '') + '最後更新 ' + BB.esc(g.updatedAt);
-        // 平常只顯示一枝筆的小圖示；點一下展開下拉選單，選單裡目前只有「刪除比賽」一個選項
+        // 平常只顯示一枝筆的小圖示；點一下展開下拉選單，選單裡目前只有「刪除比賽」一個選項（僅管理員可見）
         // 之後要加其他動作（例如編輯、複製），直接在 dropdown-menu 裡多加一個 .dropdown-item 按鈕即可
-        const actions = canEdit
+        const actions = isAdmin
             ? `<div class="card-actions" data-delete-id="${g.id}" data-delete-name="${BB.esc(g.name)}">
                    <button type="button" class="icon-toggle" aria-haspopup="true" aria-expanded="false" title="更多操作" aria-label="更多操作">✎</button>
                    <div class="dropdown-menu" hidden>
