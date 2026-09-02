@@ -37,6 +37,7 @@ public class GameService {
     private final PitchRepository pitchRepo;
     private final InningScoreRepository inningRepo;
     private final GameSnapshotRepository snapshotRepo;
+    private final GamePitcherStatRepository pitcherStatRepo;
 
     @Transactional
     public Game createGame(CreateGameRequest req, Long userId) {
@@ -322,6 +323,7 @@ public class GameService {
         inningRepo.deleteByGameId(gameId);
         gameEventRepo.deleteByGameId(gameId);
         snapshotRepo.deleteByGameId(gameId);
+        pitcherStatRepo.deleteByGameId(gameId);
         lineupRepo.deleteByGameId(gameId);
         gameEditorRepo.deleteByGameId(gameId);
 

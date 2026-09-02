@@ -88,6 +88,9 @@ CREATE TABLE game (
     runner_first           BIGINT,                                       -- game_lineup.id
     runner_second          BIGINT,
     runner_third           BIGINT,
+    runner_first_pitcher_id  BIGINT,                                     -- player.id：讓這位跑者上壘的投手，供換投手後失分歸屬使用
+    runner_second_pitcher_id BIGINT,
+    runner_third_pitcher_id  BIGINT,
     away_score             INT          NOT NULL DEFAULT 0,
     home_score             INT          NOT NULL DEFAULT 0,
     away_hits              INT          NOT NULL DEFAULT 0,
@@ -202,6 +205,29 @@ CREATE TABLE game_snapshot (
     created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_snapshot_game ON game_snapshot (game_id, action_seq);
+
+-- 投手數據：「這場比賽 × 這位投手」一列，換投手時（守備位置指定投手）後續數據會自動記到新投手的列上
+CREATE TABLE game_pitcher_stat (
+    id                    BIGSERIAL PRIMARY KEY,
+    game_id               BIGINT    NOT NULL REFERENCES game (id),
+    team_id               BIGINT    NOT NULL REFERENCES team (id),
+    player_id             BIGINT    NOT NULL REFERENCES player (id),
+    innings_outs          INT       NOT NULL DEFAULT 0,   -- 出局數，局數＝innings_outs/3（棒球慣例格式，例如 16 → 5.1 局）
+    pitches               INT       NOT NULL DEFAULT 0,
+    runs_allowed          INT       NOT NULL DEFAULT 0,
+    hits_allowed          INT       NOT NULL DEFAULT 0,
+    doubles_allowed       INT       NOT NULL DEFAULT 0,
+    triples_allowed       INT       NOT NULL DEFAULT 0,
+    home_runs_allowed     INT       NOT NULL DEFAULT 0,
+    walks_allowed         INT       NOT NULL DEFAULT 0,
+    hit_by_pitch_allowed  INT       NOT NULL DEFAULT 0,
+    stolen_bases_allowed  INT       NOT NULL DEFAULT 0,
+    action_seq            BIGINT    NOT NULL DEFAULT 0,   -- 供 undo 復原判斷這一列是不是該次動作才新建立的
+    created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_game_pitcher_stat UNIQUE (game_id, player_id)
+);
+CREATE INDEX idx_game_pitcher_stat_game ON game_pitcher_stat (game_id);
+CREATE INDEX idx_game_pitcher_stat_player ON game_pitcher_stat (player_id);
 
 -- 協同記錄員
 CREATE TABLE game_editor (
