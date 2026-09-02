@@ -26,6 +26,7 @@ public class GameQueryService {
     private final GameEventRepository eventRepo;
     private final AtBatRepository atBatRepo;
     private final PitchRepository pitchRepo;
+    private final AppUserRepository appUserRepo;
     private final ScoringService scoring;
     private final PlayerStatsService statsService;
 
@@ -295,6 +296,13 @@ public class GameQueryService {
                 ? gameRepo.findByStatusOrderByGameDateDescIdDesc(GameStatus.FINISHED)
                 : gameRepo.findAllByOrderByGameDateDescIdDesc();
 
+        // 批次查出所有建立者的顯示名稱，避免逐場比賽各查一次 app_user
+        Set<Long> creatorIds = games.stream()
+                .map(Game::getCreatedBy).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> creatorNames = appUserRepo.findAllById(creatorIds).stream()
+                .collect(java.util.stream.Collectors.toMap(AppUser::getId,
+                        u -> u.getDisplayName() == null ? "" : u.getDisplayName()));
+
         List<Map<String, Object>> out = new ArrayList<>();
         for (Game g : games) {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -310,6 +318,7 @@ public class GameQueryService {
             m.put("inningLabel", g.getInning() + "局" + g.getHalf().getLabel());
             m.put("outs", g.getOuts());
             m.put("updatedAt", g.getUpdatedAt().format(TIME_FMT));
+            m.put("createdByName", orDash(creatorNames.get(g.getCreatedBy())));
             m.put("winner", g.getStatus() == GameStatus.FINISHED
                     ? (g.getAwayScore() > g.getHomeScore() ? g.getAwayTeam().getName()
                     : g.getHomeScore() > g.getAwayScore() ? g.getHomeTeam().getName() : "平手")
