@@ -2,6 +2,7 @@ package com.baseball.score.controller;
 
 import com.baseball.score.config.AuthInterceptor;
 import com.baseball.score.config.CurrentUser;
+import com.baseball.score.config.RequireAdmin;
 import com.baseball.score.config.RequireEditor;
 import com.baseball.score.dto.ApiResponse;
 import com.baseball.score.dto.PlayerRequest;
@@ -50,6 +51,14 @@ public class TeamApiController {
     public ApiResponse<Map<String, Object>> update(@PathVariable Long id, @Valid @RequestBody TeamRequest req) {
         Team team = teamService.updateTeam(id, req);
         return ApiResponse.ok("球隊資料已更新", Map.of("id", team.getId()));
+    }
+
+    /** 刪除整支球隊（含旗下球員），操作無法復原；僅限管理員。若球隊已有比賽紀錄則禁止刪除，避免留下無法對應球隊的比賽資料 */
+    @RequireAdmin
+    @DeleteMapping("/teams/{id}")
+    public ApiResponse<Void> deleteTeam(@PathVariable Long id) {
+        teamService.deleteTeam(id);
+        return ApiResponse.ok("球隊已刪除", null);
     }
 
     @RequireEditor

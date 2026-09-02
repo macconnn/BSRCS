@@ -2,6 +2,7 @@ package com.baseball.score.controller;
 
 import com.baseball.score.config.AuthInterceptor;
 import com.baseball.score.config.CurrentUser;
+import com.baseball.score.config.RequireAdmin;
 import com.baseball.score.config.RequireEditor;
 import com.baseball.score.dto.*;
 import com.baseball.score.entity.Game;
@@ -68,11 +69,10 @@ public class GameApiController {
         return ApiResponse.ok("比賽已建立", Map.of("id", game.getId()));
     }
 
-    /** 刪除整場比賽紀錄（含所有打席、投球、比分等關聯資料），操作無法復原 */
-    @RequireEditor
+    /** 刪除整場比賽紀錄（含所有打席、投球、比分等關聯資料），操作無法復原；僅限管理員 */
+    @RequireAdmin
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
         gameService.deleteGame(id);
         return ApiResponse.ok("比賽紀錄已刪除", null);
     }
