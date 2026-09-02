@@ -15,11 +15,12 @@
             <span>線上棒球比賽紀錄表（檢視模式）</span>
         </div>
         <div class="topbar-actions">
-            <span class="badge">👁 僅可檢視</span>
+            <span class="badge badge-muted" th:if="${lockedNotOwner}">🔒 僅建立者可操作，你目前為檢視模式</span>
+            <span class="badge" th:unless="${lockedNotOwner}">👁 僅可檢視</span>
             <a class="btn" href="/games">比賽列表</a>
             <span class="auto-refresh">🔄 <span data-refresh-label>自動更新：剛剛</span></span>
             <a class="btn" th:if="${!loggedIn}" href="/">編輯者登入</a>
-            <a class="btn" th:if="${loggedIn}" th:href="@{'/games/' + ${gameId}}">回到編輯模式</a>
+            <a class="btn" th:if="${loggedIn and !lockedNotOwner}" th:href="@{'/games/' + ${gameId}}">回到編輯模式</a>
         </div>
     </header>
 

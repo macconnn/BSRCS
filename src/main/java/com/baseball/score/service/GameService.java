@@ -1,5 +1,6 @@
 package com.baseball.score.service;
 
+import com.baseball.score.config.CurrentUser;
 import com.baseball.score.dto.CreateGameRequest;
 import com.baseball.score.dto.LineupEntryRequest;
 import com.baseball.score.entity.*;
@@ -295,16 +296,14 @@ public class GameService {
         else game.setHomePitcherLineupId(pitcherId);
     }
 
-    /** 檢查此使用者是否可編輯這場比賽（第一次編輯時自動登記為協同記錄員） */
-    @Transactional
-    public void assertCanEditGame(Long gameId, Long userId) {
-        if (userId == null) throw new ApiException(HttpStatus.FORBIDDEN, "請先登入編輯者帳號");
+    /** 檢查此使用者是否可操作這場比賽：僅限「建立者本人」或「管理員」，避免多人同時記錄同一場比賽造成資料錯亂 */
+    public void assertCanEditGame(Long gameId, CurrentUser user) {
+        if (user.getUserId() == null) throw new ApiException(HttpStatus.FORBIDDEN, "請先登入編輯者帳號");
+        if (user.isAdmin()) return;
         Game game = gameRepo.findById(gameId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "找不到比賽"));
-        boolean owner = userId.equals(game.getCreatedBy());
-        if (!owner && !gameEditorRepo.existsByGameIdAndUserId(gameId, userId)) {
-            // 預設允許所有已登入的編輯者共同記錄；若要嚴格限制，改成 throw
-            gameEditorRepo.save(GameEditor.builder().gameId(gameId).userId(userId).build());
+        if (!user.getUserId().equals(game.getCreatedBy())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "只有建立這場比賽的編輯者才能操作，避免多人同時記錄造成資料錯亂");
         }
     }
 

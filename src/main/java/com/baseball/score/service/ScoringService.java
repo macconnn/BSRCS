@@ -140,7 +140,7 @@ public class ScoringService {
                 .build());
 
         addEvent(game, "PITCH", batter.getPlayer().getName(), call.getLabel(),
-                switch (call) { case STRIKE -> "green"; case BALL -> "yellow"; case FOUL -> "blue"; });
+                switch (call) { case STRIKE -> "yellow"; case BALL -> "green"; case FOUL -> "blue"; });
 
         if (game.getStrikes() >= 3) {
             applyResult(game, atBat, PlayResult.STRIKEOUT);

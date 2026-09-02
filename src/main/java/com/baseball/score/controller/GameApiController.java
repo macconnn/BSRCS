@@ -82,7 +82,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> pitch(@PathVariable Long id,
                                                   @Valid @RequestBody PitchRequest req,
                                                   HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.recordPitch(id, req.getCall(), req.getPitchType(), req.getSpeedKmh());
         return ApiResponse.ok("已記錄 " + req.getCall().getLabel(), queryService.gameState(id, true));
     }
@@ -92,7 +92,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> result(@PathVariable Long id,
                                                    @Valid @RequestBody ResultRequest req,
                                                    HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.recordResult(id, req.getResult());
         return ApiResponse.ok("已記錄 " + req.getResult().getLabel(), queryService.gameState(id, true));
     }
@@ -103,7 +103,7 @@ public class GameApiController {
     public ApiResponse<List<Map<String, Object>>> bench(@PathVariable Long id,
                                                           @RequestParam TeamSide side,
                                                           HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         return ApiResponse.ok(gameService.benchPlayers(id, side));
     }
 
@@ -113,7 +113,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> substitute(@PathVariable Long id,
                                                         @Valid @RequestBody SubstitutionRequest req,
                                                         HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         gameService.substitute(id, req.getSide(), req.getOutLineupId(), req.getInPlayerId());
         return ApiResponse.ok("已完成換人", queryService.gameState(id, true));
     }
@@ -124,7 +124,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> swapPosition(@PathVariable Long id,
                                                           @Valid @RequestBody PositionSwapRequest req,
                                                           HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         gameService.swapPosition(id, req.getSide(), req.getLineupIdA(), req.getLineupIdB());
         return ApiResponse.ok("已互換守備位置", queryService.gameState(id, true));
     }
@@ -135,7 +135,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> steal(@PathVariable Long id,
                                                    @Valid @RequestBody StealRequest req,
                                                    HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.recordSteal(id, req.getFromBase(), req.getToBase(), req.getOutcome(), req.isError());
         return ApiResponse.ok("已記錄盜壘", queryService.gameState(id, true));
     }
@@ -146,7 +146,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> errorAdvance(@PathVariable Long id,
                                                           @Valid @RequestBody ErrorAdvanceRequest req,
                                                           HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.recordErrorAdvance(id, req.getFromBase(), req.getToBase());
         return ApiResponse.ok("已記錄失誤推進", queryService.gameState(id, true));
     }
@@ -157,7 +157,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> editBases(@PathVariable Long id,
                                                        @Valid @RequestBody BaseEditRequest req,
                                                        HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.editBases(id, req.getRunnerFirst(), req.getRunnerSecond(), req.getRunnerThird());
         return ApiResponse.ok("已更新壘包狀態", queryService.gameState(id, true));
     }
@@ -168,7 +168,7 @@ public class GameApiController {
     public ApiResponse<Map<String, Object>> editScore(@PathVariable Long id,
                                                        @Valid @RequestBody ScoreEditRequest req,
                                                        HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.editInningScore(id, req.getSide(), req.getInning(), req.getRuns());
         return ApiResponse.ok("已更新比分", queryService.gameState(id, true));
     }
@@ -176,7 +176,7 @@ public class GameApiController {
     @RequireEditor
     @PostMapping("/{id}/next-batter")
     public ApiResponse<Map<String, Object>> next(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.nextBatter(id);
         return ApiResponse.ok("已換下一位打者", queryService.gameState(id, true));
     }
@@ -184,7 +184,7 @@ public class GameApiController {
     @RequireEditor
     @PostMapping("/{id}/undo")
     public ApiResponse<Map<String, Object>> undo(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.undo(id);
         return ApiResponse.ok("已復原上一個動作", queryService.gameState(id, true));
     }
@@ -192,7 +192,7 @@ public class GameApiController {
     @RequireEditor
     @PostMapping("/{id}/reset")
     public ApiResponse<Map<String, Object>> reset(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.reset(id);
         return ApiResponse.ok("比賽已重新開始", queryService.gameState(id, true));
     }
@@ -200,7 +200,7 @@ public class GameApiController {
     @RequireEditor
     @PostMapping("/{id}/start")
     public ApiResponse<Map<String, Object>> start(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.start(id);
         return ApiResponse.ok("比賽開始", queryService.gameState(id, true));
     }
@@ -208,7 +208,7 @@ public class GameApiController {
     @RequireEditor
     @PostMapping("/{id}/finish")
     public ApiResponse<Map<String, Object>> finish(@PathVariable Long id, HttpServletRequest request) {
-        gameService.assertCanEditGame(id, currentUser(request).getUserId());
+        gameService.assertCanEditGame(id, currentUser(request));
         scoringService.finish(id);
         return ApiResponse.ok("比賽已結束", queryService.gameState(id, true));
     }

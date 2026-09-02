@@ -91,12 +91,19 @@ public class PageController {
         CurrentUser user = currentUser(request);
         DeviceType device = DeviceUtil.detect(request);
         boolean viewerOnly = "viewer".equalsIgnoreCase(request.getParameter("mode"));
-        boolean canEdit = user.canEdit() && !viewerOnly;
 
         Optional<Game> game = gameRepo.findById(id);
+        // 是否為這場比賽的建立者（或管理員）：避免多個編輯者同時操控同一場比賽造成資料錯亂，
+        // 非建立者即使是編輯者身分，也只會看到檢視模式畫面
+        boolean isOwner = game.map(g -> user.isAdmin() || java.util.Objects.equals(user.getUserId(), g.getCreatedBy()))
+                .orElse(true);
+        boolean canEdit = user.canEdit() && !viewerOnly && isOwner;
+        boolean lockedNotOwner = user.canEdit() && !viewerOnly && !isOwner;
+
         model.addAttribute("gameId", id);
         model.addAttribute("gameName", game.map(Game::getName).orElse("比賽"));
         model.addAttribute("canEdit", canEdit);
+        model.addAttribute("lockedNotOwner", lockedNotOwner);
         model.addAttribute("loggedIn", user.isLoggedIn());
         model.addAttribute("device", device.name());
         model.addAttribute("displayName", user.getDisplayName());
