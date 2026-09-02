@@ -30,6 +30,8 @@ public class ScoringService {
     private final PitchRepository pitchRepo;
     private final GameEventRepository eventRepo;
     private final GameSnapshotRepository snapshotRepo;
+    private final GamePitcherStatRepository pitcherStatRepo;
+    private final PlayerRepository playerRepo;
     private final ObjectMapper objectMapper;
 
     // ------------------------------------------------------------ 查詢輔助
@@ -69,6 +71,45 @@ public class ScoringService {
         if (id != null) return lineupRepo.findById(id).orElse(null);
         return lineup(game, fieldingSide(game)).stream()
                 .filter(l -> "投手".equals(l.getPosition())).findFirst().orElse(null);
+    }
+
+    /**
+     * 依「打線 id」找出（或建立）這位投手在這場比賽的投手數據列。
+     * 找不到指定投手（pitcherLineupId 是 null，或該打線項目查無資料）時回傳 null，呼叫端要自行判斷跳過，
+     * 避免因為打線還沒設好投手而整支動作報錯。
+     * 新建立的列會標記目前的 action_seq，undo 復原時要靠這個判斷「這一列是不是這次動作才新增的」。
+     */
+    private GamePitcherStat pitcherStatFor(Game game, Long pitcherLineupId) {
+        if (pitcherLineupId == null) return null;
+        GameLineup pitcher = lineupRepo.findById(pitcherLineupId).orElse(null);
+        if (pitcher == null) return null;
+        return pitcherStatRepo.findByGameIdAndPlayerId(game.getId(), pitcher.getPlayer().getId())
+                .orElseGet(() -> pitcherStatRepo.save(GamePitcherStat.builder()
+                        .game(game).team(pitcher.getTeam()).player(pitcher.getPlayer())
+                        .actionSeq(game.getActionSeq())
+                        .build()));
+    }
+
+    /**
+     * 依「球員 id」直接找出（或建立）這位投手在這場比賽的投手數據列。
+     * 用於失分歸屬：壘上跑者得分時，要算在「當初讓他上壘的那位投手」身上，而不是現在正在投球的投手，
+     * 所以這裡是用球員 id（跟著跑者一起存在 game.runnerXxxPitcherId），不是「現在打席」的 pitcherLineupId。
+     */
+    private GamePitcherStat pitcherStatForPlayer(Game game, Long pitcherPlayerId) {
+        if (pitcherPlayerId == null) return null;
+        Player pitcher = playerRepo.findById(pitcherPlayerId).orElse(null);
+        if (pitcher == null) return null;
+        return pitcherStatRepo.findByGameIdAndPlayerId(game.getId(), pitcherPlayerId)
+                .orElseGet(() -> pitcherStatRepo.save(GamePitcherStat.builder()
+                        .game(game).team(pitcher.getTeam()).player(pitcher)
+                        .actionSeq(game.getActionSeq())
+                        .build()));
+    }
+
+    /** atBat.pitcherLineupId（打線列 id）換算成穩定的球員 id，供壘包責任歸屬追蹤使用 */
+    private Long pitcherPlayerIdOf(Long pitcherLineupId) {
+        if (pitcherLineupId == null) return null;
+        return lineupRepo.findById(pitcherLineupId).map(l -> l.getPlayer().getId()).orElse(null);
     }
 
     private int batterIndex(Game game) {
@@ -118,6 +159,12 @@ public class ScoringService {
 
         AtBat atBat = currentOrCreateAtBat(game);
         GameLineup batter = atBat.getBatterLineup();
+
+        GamePitcherStat pStat = pitcherStatFor(game, atBat.getPitcherLineupId());
+        if (pStat != null) {
+            pStat.setPitches(pStat.getPitches() + 1);
+            pitcherStatRepo.save(pStat);
+        }
 
         // 球種／球速欄位可能因為「球種球速開關」被關閉而沒有顯示，前端就不會送這兩個值上來（null）；
         // 這裡統一補上預設值「直球」／100 km/h，確保資料庫欄位不會是空的，跟關閉開關時畫面上講的行為一致。
@@ -195,8 +242,10 @@ public class ScoringService {
         snapshot(game, "STEAL_" + outcome);
 
         Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        Long[] pids = { game.getRunnerFirstPitcherId(), game.getRunnerSecondPitcherId(), game.getRunnerThirdPitcherId() };
         int idx = fromBase - 1;
         Long runnerId = bases[idx];
+        Long runnerPitcherId = pids[idx];
         if (runnerId == null) {
             throw new ApiException(baseLabel(fromBase) + " 目前沒有跑者，無法盜壘");
         }
@@ -206,7 +255,7 @@ public class ScoringService {
         String runnerName = runner.getPlayer().getName();
 
         if (outcome == StealOutcome.CAUGHT) {
-            bases[idx] = null;
+            bases[idx] = null; pids[idx] = null;
             game.setOuts(game.getOuts() + 1);
             runner.setCaughtStealing(runner.getCaughtStealing() + 1);
             lineupRepo.save(runner);
@@ -219,18 +268,37 @@ public class ScoringService {
                 throw new ApiException(baseLabel(toBase) + " 已經有其他跑者，無法盜壘上去");
             }
 
-            bases[idx] = null;
+            bases[idx] = null; pids[idx] = null;
             int runs = 0;
             if (toBase == 4) {
                 runs = 1;
             } else {
-                bases[toBase - 1] = runnerId;
+                bases[toBase - 1] = runnerId; pids[toBase - 1] = runnerPitcherId;
             }
 
             runner.setStolenBases(runner.getStolenBases() + 1);
             lineupRepo.save(runner);
             if (error) addError(game, fieldingSide(game));
             if (runs > 0) addRuns(game, batting, runs);
+
+            // 被盜壘（這次盜壘本身）：算在「目前正在守備的投手」身上（用當下的 currentPitcher 動態查，
+            // 因為盜壘不像安打／保送隸屬於某個特定打席，是打席進行中獨立發生的跑者事件）。
+            GameLineup pitcherNow = currentPitcher(game);
+            Long currentPitcherPlayerId = pitcherNow == null ? null : pitcherNow.getPlayer().getId();
+            GamePitcherStat pStat = pitcherStatFor(game, pitcherNow == null ? null : pitcherNow.getId());
+            if (pStat != null) {
+                pStat.setStolenBasesAllowed(pStat.getStolenBasesAllowed() + 1);
+                pitcherStatRepo.save(pStat);
+            }
+            // 盜本壘得分：失分要算在「原本讓這位跑者上壘的投手」身上，不是現在守備的投手（可能剛好是同一人）。
+            if (runs > 0) {
+                Long chargeTo = runnerPitcherId != null ? runnerPitcherId : currentPitcherPlayerId;
+                GamePitcherStat rStat = pitcherStatForPlayer(game, chargeTo);
+                if (rStat != null) {
+                    rStat.setRunsAllowed(rStat.getRunsAllowed() + runs);
+                    pitcherStatRepo.save(rStat);
+                }
+            }
 
             String desc = runnerName + " 從" + baseLabel(fromBase) + "盜上"
                     + (toBase == 4 ? "本壘，得 1 分" : baseLabel(toBase))
@@ -241,6 +309,9 @@ public class ScoringService {
         game.setRunnerFirst(bases[0]);
         game.setRunnerSecond(bases[1]);
         game.setRunnerThird(bases[2]);
+        game.setRunnerFirstPitcherId(pids[0]);
+        game.setRunnerSecondPitcherId(pids[1]);
+        game.setRunnerThirdPitcherId(pids[2]);
 
         if (game.getOuts() >= 3) changeHalfInning(game);
         touch(game);
@@ -275,8 +346,10 @@ public class ScoringService {
         snapshot(game, "ERROR_ADVANCE");
 
         Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        Long[] pids = { game.getRunnerFirstPitcherId(), game.getRunnerSecondPitcherId(), game.getRunnerThirdPitcherId() };
         int idx = fromBase - 1;
         Long runnerId = bases[idx];
+        Long runnerPitcherId = pids[idx];
         if (runnerId == null) {
             throw new ApiException(baseLabel(fromBase) + " 目前沒有跑者，無法記錄失誤推進");
         }
@@ -289,20 +362,37 @@ public class ScoringService {
         TeamSide batting = battingSide(game);
         String runnerName = runner.getPlayer().getName();
 
-        bases[idx] = null;
+        bases[idx] = null; pids[idx] = null;
         int runs = 0;
         if (toBase == 4) {
             runs = 1;
         } else {
-            bases[toBase - 1] = runnerId;
+            bases[toBase - 1] = runnerId; pids[toBase - 1] = runnerPitcherId;
         }
 
         addError(game, fieldingSide(game));
         if (runs > 0) addRuns(game, batting, runs);
 
+        // 失分算在「原本讓這位跑者上壘的投手」身上；如果查不到（例如舊資料沒有記錄），退回算在目前守備的投手身上。
+        if (runs > 0) {
+            Long chargeTo = runnerPitcherId;
+            if (chargeTo == null) {
+                GameLineup pitcherNow = currentPitcher(game);
+                chargeTo = pitcherNow == null ? null : pitcherNow.getPlayer().getId();
+            }
+            GamePitcherStat rStat = pitcherStatForPlayer(game, chargeTo);
+            if (rStat != null) {
+                rStat.setRunsAllowed(rStat.getRunsAllowed() + runs);
+                pitcherStatRepo.save(rStat);
+            }
+        }
+
         game.setRunnerFirst(bases[0]);
         game.setRunnerSecond(bases[1]);
         game.setRunnerThird(bases[2]);
+        game.setRunnerFirstPitcherId(pids[0]);
+        game.setRunnerSecondPitcherId(pids[1]);
+        game.setRunnerThirdPitcherId(pids[2]);
 
         String desc = runnerName + " 因守備失誤，從" + baseLabel(fromBase) + "多推進到"
                 + (toBase == 4 ? "本壘，得 1 分（不計打點）" : baseLabel(toBase));
@@ -336,6 +426,18 @@ public class ScoringService {
             if (l.getTeamSide() != batting) throw new ApiException(l.getPlayer().getName() + " 不是目前進攻方的球員，無法設為跑者");
             if (!Boolean.TRUE.equals(l.getActive())) throw new ApiException(l.getPlayer().getName() + " 目前不在場上，無法設為跑者");
         }
+
+        // 手動調整壘包沒有對應的「打席」或「盜壘事件」可以追蹤責任投手，只能用最保守的猜測：
+        // 這個壘包上的球員如果變了（換了一個人，或原本沒人現在有人），就當成是「現在守備的投手」讓他上壘的；
+        // 如果壘包上的人沒變（只是重新確認一次），保留原本記錄的責任投手，不要覆蓋掉。
+        GameLineup pitcherNow = currentPitcher(game);
+        Long currentPitcherPlayerId = pitcherNow == null ? null : pitcherNow.getPlayer().getId();
+        game.setRunnerFirstPitcherId(java.util.Objects.equals(game.getRunnerFirst(), firstId)
+                ? game.getRunnerFirstPitcherId() : (firstId == null ? null : currentPitcherPlayerId));
+        game.setRunnerSecondPitcherId(java.util.Objects.equals(game.getRunnerSecond(), secondId)
+                ? game.getRunnerSecondPitcherId() : (secondId == null ? null : currentPitcherPlayerId));
+        game.setRunnerThirdPitcherId(java.util.Objects.equals(game.getRunnerThird(), thirdId)
+                ? game.getRunnerThirdPitcherId() : (thirdId == null ? null : currentPitcherPlayerId));
 
         game.setRunnerFirst(firstId);
         game.setRunnerSecond(secondId);
@@ -399,10 +501,12 @@ public class ScoringService {
         eventRepo.deleteByGameId(gameId);
         snapshotRepo.deleteByGameId(gameId);
         inningRepo.deleteByGameId(gameId);
+        pitcherStatRepo.deleteByGameId(gameId);
 
         game.setInning(1); game.setHalf(InningHalf.TOP);
         game.setOuts(0); game.setBalls(0); game.setStrikes(0);
         game.setRunnerFirst(null); game.setRunnerSecond(null); game.setRunnerThird(null);
+        game.setRunnerFirstPitcherId(null); game.setRunnerSecondPitcherId(null); game.setRunnerThirdPitcherId(null);
         game.setAwayScore(0); game.setHomeScore(0);
         game.setAwayHits(0); game.setHomeHits(0);
         game.setAwayErrors(0); game.setHomeErrors(0);
@@ -442,48 +546,100 @@ public class ScoringService {
         GameLineup batter = atBat.getBatterLineup();
 
         Long[] bases = { game.getRunnerFirst(), game.getRunnerSecond(), game.getRunnerThird() };
+        // 每個壘包跑者「是被哪位投手放上壘的」（存球員 id），跟著跑者一起搬動；
+        // 換投手後，壘上原本的跑者如果之後得分，失分才能正確算在原本讓他上壘的投手身上，而不是新投手。
+        Long[] pids = { game.getRunnerFirstPitcherId(), game.getRunnerSecondPitcherId(), game.getRunnerThirdPitcherId() };
+        // 這個打席「目前實際面對打者」的投手（新上場的投手一開始都是這個角色）
+        Long thisPitcherPlayerId = pitcherPlayerIdOf(atBat.getPitcherLineupId());
+        // 這一球會產生的失分，依「造成上壘的投手」個別歸屬；同一個投手可能同時對到好幾筆（例如滿貫全壘打）
+        Map<Long, Integer> runsByPitcher = new LinkedHashMap<>();
         int runs = 0;
 
         if (result == PlayResult.HOME_RUN) {
-            for (int i = 0; i < 3; i++) if (bases[i] != null) { runs++; bases[i] = null; }
+            for (int i = 0; i < 3; i++) {
+                if (bases[i] != null) {
+                    runs++;
+                    runsByPitcher.merge(pids[i] != null ? pids[i] : thisPitcherPlayerId, 1, Integer::sum);
+                    bases[i] = null; pids[i] = null;
+                }
+            }
             runs++; // 打者本人
+            runsByPitcher.merge(thisPitcherPlayerId, 1, Integer::sum);
         } else if (result == PlayResult.WALK || result == PlayResult.HIT_BY_PITCH) {
             // 保送：只推進被擠壓的跑者
             if (bases[0] != null) {
                 if (bases[1] != null) {
-                    if (bases[2] != null) { runs++; }
-                    bases[2] = bases[1];
+                    if (bases[2] != null) {
+                        runs++;
+                        runsByPitcher.merge(pids[2] != null ? pids[2] : thisPitcherPlayerId, 1, Integer::sum);
+                    }
+                    bases[2] = bases[1]; pids[2] = pids[1];
                 }
-                bases[1] = bases[0];
+                bases[1] = bases[0]; pids[1] = pids[0];
             }
-            bases[0] = batter.getId();
+            bases[0] = batter.getId(); pids[0] = thisPitcherPlayerId;
         } else {
             int adv = result.getRunnerAdvance();
             if (adv > 0) {
                 for (int i = 2; i >= 0; i--) {
                     if (bases[i] == null) continue;
                     int target = i + adv;               // 0=一壘,1=二壘,2=三壘
-                    if (target >= 3) { runs++; bases[i] = null; }
-                    else { bases[target] = bases[i]; bases[i] = null; }
+                    if (target >= 3) {
+                        runs++;
+                        runsByPitcher.merge(pids[i] != null ? pids[i] : thisPitcherPlayerId, 1, Integer::sum);
+                        bases[i] = null; pids[i] = null;
+                    } else {
+                        bases[target] = bases[i]; pids[target] = pids[i];
+                        bases[i] = null; pids[i] = null;
+                    }
                 }
             }
-            if (result == PlayResult.DOUBLE_PLAY && bases[0] != null) bases[0] = null;
+            if (result == PlayResult.DOUBLE_PLAY && bases[0] != null) { bases[0] = null; pids[0] = null; }
             if (result == PlayResult.CAUGHT_STEALING) {
-                for (int i = 2; i >= 0; i--) if (bases[i] != null) { bases[i] = null; break; }
+                for (int i = 2; i >= 0; i--) if (bases[i] != null) { bases[i] = null; pids[i] = null; break; }
             }
             int b = result.getBases();
-            if (b >= 1 && b <= 3) bases[b - 1] = batter.getId();
+            if (b >= 1 && b <= 3) { bases[b - 1] = batter.getId(); pids[b - 1] = thisPitcherPlayerId; }
         }
 
         game.setRunnerFirst(bases[0]);
         game.setRunnerSecond(bases[1]);
         game.setRunnerThird(bases[2]);
+        game.setRunnerFirstPitcherId(pids[0]);
+        game.setRunnerSecondPitcherId(pids[1]);
+        game.setRunnerThirdPitcherId(pids[2]);
 
         // 分數 / 安打 / 失誤
         if (runs > 0) addRuns(game, batting, runs);
         if (result.isHit()) addHit(game, batting);
         if (result.isError()) addError(game, fieldingSide(game));
         if (result.getOuts() > 0) game.setOuts(game.getOuts() + result.getOuts());
+
+        // 投手數據（局數 / 被安打 / 四壞 / 觸身球）：歸給「這個打席開始時，場上守備的那位投手」（atBat.pitcherLineupId），
+        // 而不是重新查一次目前的投手，確保就算這個打席結束後緊接著換投手，這個打席的數據仍算在原本那位投手身上。
+        // 失分不在這裡算，改用下面的 runsByPitcher 依each 跑者原本的責任投手個別歸屬。
+        GamePitcherStat pStat = pitcherStatFor(game, atBat.getPitcherLineupId());
+        if (pStat != null) {
+            pStat.setInningsOuts(pStat.getInningsOuts() + result.getOuts());
+            if (result.isHit()) pStat.setHitsAllowed(pStat.getHitsAllowed() + 1);
+            switch (result) {
+                case DOUBLE -> pStat.setDoublesAllowed(pStat.getDoublesAllowed() + 1);
+                case TRIPLE -> pStat.setTriplesAllowed(pStat.getTriplesAllowed() + 1);
+                case HOME_RUN -> pStat.setHomeRunsAllowed(pStat.getHomeRunsAllowed() + 1);
+                case WALK -> pStat.setWalksAllowed(pStat.getWalksAllowed() + 1);
+                case HIT_BY_PITCH -> pStat.setHitByPitchAllowed(pStat.getHitByPitchAllowed() + 1);
+                default -> { }
+            }
+            pitcherStatRepo.save(pStat);
+        }
+        for (Map.Entry<Long, Integer> e : runsByPitcher.entrySet()) {
+            if (e.getKey() == null) continue;
+            GamePitcherStat rStat = pitcherStatForPlayer(game, e.getKey());
+            if (rStat != null) {
+                rStat.setRunsAllowed(rStat.getRunsAllowed() + e.getValue());
+                pitcherStatRepo.save(rStat);
+            }
+        }
 
         // 個人成績（本場打線上的 0-1 顯示；生涯累積打擊率改由 AtBat 紀錄動態計算，見 PlayerStatsService）
         boolean countAtBat = result.isCountsAsAtBat();
@@ -621,6 +777,9 @@ public class ScoringService {
             state.put("runnerFirst", game.getRunnerFirst());
             state.put("runnerSecond", game.getRunnerSecond());
             state.put("runnerThird", game.getRunnerThird());
+            state.put("runnerFirstPitcherId", game.getRunnerFirstPitcherId());
+            state.put("runnerSecondPitcherId", game.getRunnerSecondPitcherId());
+            state.put("runnerThirdPitcherId", game.getRunnerThirdPitcherId());
             state.put("awayScore", game.getAwayScore());
             state.put("homeScore", game.getHomeScore());
             state.put("awayHits", game.getAwayHits());
@@ -645,6 +804,26 @@ public class ScoringService {
             }
             state.put("lineups", lineups);
 
+            // 投手數據：快照當下「已經存在」的每一列現況（還沒存在的列，代表是這次動作才要新建立的，
+            // 不需要記進快照——復原時直接靠 actionSeq 把這種新列整列刪掉即可，見 restore()）。
+            List<Map<String, Object>> pitcherStats = new ArrayList<>();
+            for (GamePitcherStat ps : pitcherStatRepo.findByGameId(game.getId())) {
+                Map<String, Object> psState = new LinkedHashMap<>();
+                psState.put("id", ps.getId());
+                psState.put("inningsOuts", ps.getInningsOuts());
+                psState.put("pitches", ps.getPitches());
+                psState.put("runsAllowed", ps.getRunsAllowed());
+                psState.put("hitsAllowed", ps.getHitsAllowed());
+                psState.put("doublesAllowed", ps.getDoublesAllowed());
+                psState.put("triplesAllowed", ps.getTriplesAllowed());
+                psState.put("homeRunsAllowed", ps.getHomeRunsAllowed());
+                psState.put("walksAllowed", ps.getWalksAllowed());
+                psState.put("hitByPitchAllowed", ps.getHitByPitchAllowed());
+                psState.put("stolenBasesAllowed", ps.getStolenBasesAllowed());
+                pitcherStats.add(psState);
+            }
+            state.put("pitcherStats", pitcherStats);
+
             long seq = game.getActionSeq() + 1;
             game.setActionSeq(seq);
             snapshotRepo.save(GameSnapshot.builder()
@@ -665,6 +844,9 @@ public class ScoringService {
             pitchRepo.deleteAll(pitchRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
             atBatRepo.deleteAll(atBatRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
             eventRepo.deleteAll(eventRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
+            // 投手數據列如果是這次動作才新建立的（例如這是這位投手在這場比賽第一次被記到數據），
+            // 快照當時根本還不存在這一列，直接整列刪掉；如果快照當時已經存在，則保留、下面再依快照值還原欄位。
+            pitcherStatRepo.deleteAll(pitcherStatRepo.findByGameIdAndActionSeqGreaterThanEqual(game.getId(), snap.getActionSeq()));
 
             // 把快照當時「正在進行中」的打席重置回進行中狀態：
             // 如果這筆打席在快照之後被 recordResult()／nextBatter() 標記為已結束（例如誤按成一壘安打），
@@ -691,6 +873,11 @@ public class ScoringService {
             game.setRunnerFirst(asLong(state.get("runnerFirst")));
             game.setRunnerSecond(asLong(state.get("runnerSecond")));
             game.setRunnerThird(asLong(state.get("runnerThird")));
+            // 這兩個欄位是後來才加的，舊快照（state_json 裡沒有這個 key）會是 null，
+            // asLong(null) 也是回傳 null，行為上等於「這場比賽在還原的當下還沒有責任投手資料」，安全、不會噴錯。
+            game.setRunnerFirstPitcherId(asLong(state.get("runnerFirstPitcherId")));
+            game.setRunnerSecondPitcherId(asLong(state.get("runnerSecondPitcherId")));
+            game.setRunnerThirdPitcherId(asLong(state.get("runnerThirdPitcherId")));
             game.setAwayScore(asInt(state.get("awayScore")));
             game.setHomeScore(asInt(state.get("homeScore")));
             game.setAwayHits(asInt(state.get("awayHits")));
@@ -726,6 +913,24 @@ public class ScoringService {
                     l.setCaughtStealing(asInt(m.get("caughtStealing")));
                     lineupRepo.save(l);
                 });
+            }
+            Object pitcherStatsState = state.get("pitcherStats");
+            if (pitcherStatsState != null) {
+                for (Map<String, Object> m : (List<Map<String, Object>>) pitcherStatsState) {
+                    pitcherStatRepo.findById(asLong(m.get("id"))).ifPresent(ps -> {
+                        ps.setInningsOuts(asInt(m.get("inningsOuts")));
+                        ps.setPitches(asInt(m.get("pitches")));
+                        ps.setRunsAllowed(asInt(m.get("runsAllowed")));
+                        ps.setHitsAllowed(asInt(m.get("hitsAllowed")));
+                        ps.setDoublesAllowed(asInt(m.get("doublesAllowed")));
+                        ps.setTriplesAllowed(asInt(m.get("triplesAllowed")));
+                        ps.setHomeRunsAllowed(asInt(m.get("homeRunsAllowed")));
+                        ps.setWalksAllowed(asInt(m.get("walksAllowed")));
+                        ps.setHitByPitchAllowed(asInt(m.get("hitByPitchAllowed")));
+                        ps.setStolenBasesAllowed(asInt(m.get("stolenBasesAllowed")));
+                        pitcherStatRepo.save(ps);
+                    });
+                }
             }
             touch(game);
         } catch (Exception e) {

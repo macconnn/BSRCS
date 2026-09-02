@@ -65,6 +65,18 @@ public class Game {
     @Column(name = "runner_second") private Long runnerSecond;
     @Column(name = "runner_third")  private Long runnerThird;
 
+    /**
+     * 目前站在一／二／三壘的跑者，各自是「哪位投手」讓他上壘的（存 player.id，不是 game_lineup.id，
+     * 因為換投手不影響這個責任歸屬，用穩定的球員 id 才不會因為打線列被換掉而跟丟）。
+     * 用途：換投手後，原本就在壘上的跑者如果之後得分，失分要算在原本讓他上壘的投手身上，
+     * 不能算在剛換上來、根本還沒面對這個跑者的新投手身上。
+     * 這三個欄位是後來才加到既有的 game 表格，既有資料列會是 NULL；ScoringService 遇到 NULL
+     * 時會退回「算在目前這個打席的投手身上」的舊行為，所以不需要另外補資料庫遷移。
+     */
+    @Column(name = "runner_first_pitcher_id")  private Long runnerFirstPitcherId;
+    @Column(name = "runner_second_pitcher_id") private Long runnerSecondPitcherId;
+    @Column(name = "runner_third_pitcher_id")  private Long runnerThirdPitcherId;
+
     @Column(name = "away_score", nullable = false)  @Builder.Default private Integer awayScore = 0;
     @Column(name = "home_score", nullable = false)  @Builder.Default private Integer homeScore = 0;
     @Column(name = "away_hits", nullable = false)   @Builder.Default private Integer awayHits = 0;

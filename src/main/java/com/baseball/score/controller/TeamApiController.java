@@ -37,6 +37,12 @@ public class TeamApiController {
         return ApiResponse.ok(teamService.teamDetail(id));
     }
 
+    /** 單一球員的完整數據總覽（打擊 + 投手，投手數據只有曾經投過球的球員才會有） */
+    @GetMapping("/players/{id}/stats")
+    public ApiResponse<Map<String, Object>> playerStats(@PathVariable Long id) {
+        return ApiResponse.ok(teamService.playerStats(id));
+    }
+
     // ---------------------------------------------------------- 編輯（僅編輯者）
 
     @RequireEditor

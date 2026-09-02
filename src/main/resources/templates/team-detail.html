@@ -46,7 +46,7 @@
                     <th>姓名</th>
                     <th>守備位置</th>
                     <th style="width:80px;text-align:right;">打擊率</th>
-                    <th th:if="${canEdit}" style="width:104px;"></th>
+                    <th style="width:150px;"></th>
                 </tr>
                 </thead>
                 <tbody id="playerBody"></tbody>
@@ -106,10 +106,13 @@
     function playerRow(p) {
         const actions = canEdit
             ? '<td><div class="row-actions">'
+            + '<button class="btn btn-sm" data-stats="' + p.id + '">數據</button>'
             + '<button class="btn btn-sm" data-edit="' + p.id + '">編輯</button>'
             + '<button class="btn btn-sm" data-remove="' + p.id + '">移除</button>'
             + '</div></td>'
-            : '';
+            : '<td><div class="row-actions">'
+            + '<button class="btn btn-sm" data-stats="' + p.id + '">數據</button>'
+            + '</div></td>';
         const avgTitle = 'title="' + p.atBats + ' 打數 ' + p.hits + ' 安打"';
         return '<tr>'
             + '<td style="font-weight:700;">' + BB.esc(p.jerseyNumber) + '</td>'
@@ -138,18 +141,25 @@
             document.getElementById('rosterHint').textContent = players.length + ' 位球員　·　'
                 + (canEdit ? '可新增與編輯' : '瀏覽者僅可觀看');
 
-            const colspan = canEdit ? 5 : 4;
+            const colspan = 5;
             document.getElementById('playerBody').innerHTML = players.length
                 ? players.map(playerRow).join('')
                 : '<tr><td colspan="' + colspan + '"><div class="empty">名單還是空的</div></td></tr>';
 
-            if (canEdit) bindRowActions();
+            bindRowActions();
         } catch (e) {
             BB.toast(e.message, true);
         }
     }
 
     function bindRowActions() {
+        document.querySelectorAll('[data-stats]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openStatsModal(btn.dataset.stats);
+            });
+        });
+
+        if (!canEdit) return;
         document.querySelectorAll('[data-edit]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const p = players.find(function (x) { return String(x.id) === btn.dataset.edit; });
@@ -238,6 +248,90 @@
                 BB.toast(e.message, true);
             }
         });
+    }
+
+    /* ---------------------------------------------------------- 球員數據總覽（打擊 / 投手） */
+
+    function statBox(value, label) {
+        return '<div class="stat-box"><div class="v">' + BB.esc(String(value)) + '</div><div class="k">' + BB.esc(label) + '</div></div>';
+    }
+
+    function statRow() {
+        return '<div class="stat-row">' + Array.prototype.map.call(arguments, function (it) { return statBox(it[0], it[1]); }).join('') + '</div>';
+    }
+
+    async function openStatsModal(playerId) {
+        closeStatsModal();
+        let data;
+        try {
+            data = await BB.get('/api/players/' + playerId + '/stats');
+        } catch (e) {
+            BB.toast(e.message, true);
+            return;
+        }
+
+        const b = data.batting;
+        const battingHtml = ''
+            + statRow([b.pa, '打席數'], [b.atBats, '打數'], [b.hits, '安打'], [b.avg, '打擊率'])
+            + statRow([b.doubles, '二壘安打'], [b.triples, '三壘安打'], [b.homeRuns, '全壘打'], [b.stolenBases, '盜壘'])
+            + statRow([b.walks, '四壞球'], [b.strikeouts, '三振'], [b.sacBunts, '犧牲觸擊'], ['', '']);
+
+        const hasPitching = !!data.pitching;
+        let pitchingHtml = '';
+        if (hasPitching) {
+            const p = data.pitching;
+            pitchingHtml = ''
+                + statRow([p.gamesPitched, '出賽數'], [p.inningsPitched, '局數'], [p.pitches, '投球數'], [p.era, '防禦率'])
+                + statRow([p.runsAllowed, '失分'], [p.hitsAllowed, '被安打'], [p.doublesAllowed, '被二壘安打'], [p.triplesAllowed, '被三壘安打'])
+                + statRow([p.homeRunsAllowed, '被全壘打'], [p.walksAllowed, '四壞'], [p.hitByPitchAllowed, '觸身球'], [p.stolenBasesAllowed, '被盜壘']);
+        }
+
+        const tabsHtml = hasPitching
+            ? '<div class="filter-tabs" style="grid-template-columns:1fr 1fr;margin-bottom:14px;">'
+            + '<button class="tab active" data-tab="batting">打擊數據</button>'
+            + '<button class="tab" data-tab="pitching">投手數據</button>'
+            + '</div>'
+            : '';
+
+        const mask = document.createElement('div');
+        mask.className = 'modal-mask';
+        mask.innerHTML = `
+            <div class="modal-card" role="dialog" aria-modal="true" aria-label="球員數據總覽">
+                <div class="modal-head">
+                    <div>
+                        <div style="font-size:17px;font-weight:700;">#${BB.esc(data.jerseyNumber)} ${BB.esc(data.name)}</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${BB.esc(data.teamName)}　${BB.esc(data.position)}</div>
+                    </div>
+                    <button class="modal-close" aria-label="關閉">×</button>
+                </div>
+                <div class="modal-body">
+                    ${tabsHtml}
+                    <div data-panel="batting">${battingHtml}</div>
+                    <div data-panel="pitching" hidden>${pitchingHtml}</div>
+                </div>
+            </div>`;
+
+        if (hasPitching) {
+            mask.querySelectorAll('[data-tab]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    mask.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    mask.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== btn.dataset.tab);
+                });
+            });
+        }
+
+        mask.addEventListener('click', ev => { if (ev.target === mask) closeStatsModal(); });
+        mask.querySelector('.modal-close').addEventListener('click', closeStatsModal);
+        document.addEventListener('keydown', escCloseStats);
+        document.body.appendChild(mask);
+    }
+
+    function escCloseStats(e) { if (e.key === 'Escape') closeStatsModal(); }
+
+    function closeStatsModal() {
+        document.querySelectorAll('.modal-mask').forEach(m => m.remove());
+        document.removeEventListener('keydown', escCloseStats);
     }
 
     load();
